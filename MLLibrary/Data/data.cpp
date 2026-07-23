@@ -22,6 +22,8 @@ Matrix *mat_load(
     const char *filename)
 {
     Matrix *mat = mat_create(arena, rows, cols);
+    if (!mat)
+        return nullptr;
 
     FILE *f = std::fopen(filename, "rb");
     if (!f)
@@ -35,8 +37,11 @@ Matrix *mat_load(
     if (size > max_size)
         size = max_size;
 
-    std::fread(mat->data, 1, size, f);
+    u64 read_size = std::fread(mat->data, 1, size, f);
     std::fclose(f);
+
+    if (read_size != size)
+        return nullptr;
 
     return mat;
 }
@@ -71,12 +76,18 @@ void one_hot_encode(
     const Matrix *labels,
     u32 num_classes)
 {
+    if (!out || !labels || !out->data || !labels->data || out->cols != num_classes)
+        return;
+    if (out->rows != labels->rows || labels->cols == 0)
+        return;
 
     mat_clear(out);
 
     for (u32 i = 0; i < labels->rows; i++)
     {
         u32 cls = (u32)labels->data[i];
+        if (cls >= num_classes)
+            continue;
 
         out->data[i * num_classes + cls] = 1.0f;
     }

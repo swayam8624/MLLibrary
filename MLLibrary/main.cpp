@@ -102,15 +102,16 @@ int main()
     Matrix *train_labels = mat_create(arena, 60000, 10);
     Matrix *test_labels = mat_create(arena, 10000, 10);
 
-    one_hot_encode(train_labels, train_labels_raw, 10);
-    one_hot_encode(test_labels, test_labels_raw, 10);
-
     if (!train_images || !train_labels_raw ||
-        !test_images || !test_labels_raw)
+        !test_images || !test_labels_raw ||
+        !train_labels || !test_labels)
     {
         printf("❌ Failed to load data files\n");
         return 1;
     }
+
+    one_hot_encode(train_labels, train_labels_raw, 10);
+    one_hot_encode(test_labels, test_labels_raw, 10);
 
     //======================
     // Debug print
@@ -163,6 +164,9 @@ int main()
     desc.epochs = 10;
     desc.batch_size = 50;
     desc.learning_rate = 0.01f;
+    desc.optimizer = MODEL_OPTIMIZER_MOMENTUM_SGD;
+    desc.momentum = 0.9f;
+    desc.metrics_csv_path = "training_metrics.csv";
 
     model_train(model, &desc);
 

@@ -366,7 +366,8 @@ void model_prog_compute_grads(ModelProgram *prog)
 
         case MV_OP_CROSS_ENTROPY:
             mat_cross_entropy_add_grad(
-                a->grad, b->grad,
+                (a->flags & MV_FLAG_REQUIRES_GRAD) ? a->grad : nullptr,
+                (b->flags & MV_FLAG_REQUIRES_GRAD) ? b->grad : nullptr,
                 a->val, b->val, cur->grad);
             break;
 

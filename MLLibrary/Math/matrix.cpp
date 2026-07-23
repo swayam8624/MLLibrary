@@ -19,16 +19,22 @@
 Matrix *mat_create(MemArena *arena, u32 rows, u32 cols)
 {
     Matrix *mat = push_struct<Matrix>(arena);
+    if (!mat)
+        return nullptr;
 
     mat->rows = rows;
     mat->cols = cols;
     mat->data = push_array<f32>(arena, (u64)rows * cols);
+    if (!mat->data)
+        return nullptr;
 
     return mat;
 }
 
 b32 mat_copy(Matrix *dst, const Matrix *src)
 {
+    if (!dst || !src)
+        return false;
     if (dst->rows != src->rows || dst->cols != src->cols)
     {
         return false;
@@ -46,12 +52,16 @@ b32 mat_copy(Matrix *dst, const Matrix *src)
 
 void mat_clear(Matrix *mat)
 {
+    if (!mat || !mat->data)
+        return;
     std::memset(mat->data, 0,
                 sizeof(f32) * (u64)mat->rows * mat->cols);
 }
 
 void mat_fill(Matrix *mat, f32 x)
 {
+    if (!mat || !mat->data)
+        return;
     u64 size = (u64)mat->rows * mat->cols;
     for (u64 i = 0; i < size; i++)
     {
@@ -61,6 +71,8 @@ void mat_fill(Matrix *mat, f32 x)
 
 void mat_fill_rand(Matrix *mat, f32 lower, f32 upper)
 {
+    if (!mat || !mat->data)
+        return;
     u64 size = (u64)mat->rows * mat->cols;
 
     for (u64 i = 0; i < size; i++)
@@ -71,6 +83,8 @@ void mat_fill_rand(Matrix *mat, f32 lower, f32 upper)
 
 void mat_scale(Matrix *mat, f32 scale)
 {
+    if (!mat || !mat->data)
+        return;
     u64 size = (u64)mat->rows * mat->cols;
 
     for (u64 i = 0; i < size; i++)
@@ -81,6 +95,8 @@ void mat_scale(Matrix *mat, f32 scale)
 
 f32 mat_sum(const Matrix *mat)
 {
+    if (!mat || !mat->data)
+        return 0.0f;
     u64 size = (u64)mat->rows * mat->cols;
 
     f32 sum = 0.0f;
@@ -93,7 +109,11 @@ f32 mat_sum(const Matrix *mat)
 
 u64 mat_argmax(const Matrix *mat)
 {
+    if (!mat || !mat->data)
+        return 0;
     u64 size = (u64)mat->rows * mat->cols;
+    if (size == 0)
+        return 0;
 
     u64 max_i = 0;
     for (u64 i = 0; i < size; i++)
@@ -112,6 +132,8 @@ u64 mat_argmax(const Matrix *mat)
 
 b32 mat_add(Matrix *out, const Matrix *a, const Matrix *b)
 {
+    if (!out || !a || !b)
+        return false;
     if (a->rows != b->rows || a->cols != b->cols)
         return false;
     if (out->rows != a->rows || out->cols != a->cols)
@@ -129,6 +151,8 @@ b32 mat_add(Matrix *out, const Matrix *a, const Matrix *b)
 
 b32 mat_sub(Matrix *out, const Matrix *a, const Matrix *b)
 {
+    if (!out || !a || !b)
+        return false;
     if (a->rows != b->rows || a->cols != b->cols)
         return false;
     if (out->rows != a->rows || out->cols != a->cols)
@@ -152,6 +176,9 @@ b32 mat_mul(
     Matrix *out, const Matrix *a, const Matrix *b,
     b32 zero_out, b32 transpose_a, b32 transpose_b)
 {
+    if (!out || !a || !b)
+        return false;
+
     u32 a_rows = transpose_a ? a->cols : a->rows;
     u32 a_cols = transpose_a ? a->rows : a->cols;
     u32 b_rows = transpose_b ? b->cols : b->rows;
@@ -162,10 +189,6 @@ b32 mat_mul(
     if (out->rows != a_rows || out->cols != b_cols)
         return false;
 
-    if (zero_out)
-        mat_clear(out);
-
-    // Compute with transpose awareness
     for (u32 i = 0; i < a_rows; i++)
     {
         for (u32 j = 0; j < b_cols; j++)
@@ -173,13 +196,17 @@ b32 mat_mul(
             f32 sum = 0.0f;
             for (u32 k = 0; k < a_cols; k++)
             {
-                // If transposed, swap the row/col indexing mapping
                 u32 index_a = transpose_a ? (i + k * a->cols) : (k + i * a->cols);
                 u32 index_b = transpose_b ? (k + j * b->cols) : (j + k * b->cols);
 
                 sum += a->data[index_a] * b->data[index_b];
             }
-            out->data[j + i * out->cols] += sum;
+
+            f32 *dst = out->data + j + i * out->cols;
+            if (zero_out)
+                *dst = sum;
+            else
+                *dst += sum;
         }
     }
 
@@ -192,6 +219,8 @@ b32 mat_mul(
 
 b32 mat_relu(Matrix *out, const Matrix *in)
 {
+    if (!out || !in)
+        return false;
     if (out->rows != in->rows || out->cols != in->cols)
         return false;
 
@@ -207,7 +236,14 @@ b32 mat_relu(Matrix *out, const Matrix *in)
 
 b32 mat_softmax(Matrix *out, const Matrix *in)
 {
+    if (!out || !in)
+        return false;
+    if (out->rows != in->rows || out->cols != in->cols)
+        return false;
+
     u64 size = (u64)out->rows * out->cols;
+    if (size == 0)
+        return false;
 
     // find max
     f32 max_val = in->data[0];
@@ -220,9 +256,12 @@ b32 mat_softmax(Matrix *out, const Matrix *in)
     f32 sum = 0.0f;
     for (u64 i = 0; i < size; i++)
     {
-        out->data[i] = std::exp(in->data[i] - max_val); // ✅ FIX
+        out->data[i] = std::exp(in->data[i] - max_val);
         sum += out->data[i];
     }
+
+    if (sum == 0.0f)
+        return false;
 
     mat_scale(out, 1.0f / sum);
     return true;
@@ -230,6 +269,8 @@ b32 mat_softmax(Matrix *out, const Matrix *in)
 
 b32 mat_cross_entropy(Matrix *out, const Matrix *p, const Matrix *q)
 {
+    if (!out || !p || !q)
+        return false;
     if (p->rows != q->rows || p->cols != q->cols)
         return false;
     if (out->rows != p->rows || out->cols != p->cols)
@@ -248,6 +289,12 @@ b32 mat_cross_entropy(Matrix *out, const Matrix *p, const Matrix *q)
 
 b32 mat_relu_add_grad(Matrix *out, const Matrix *in, const Matrix *grad)
 {
+    if (!out || !in || !grad)
+        return false;
+    if (out->rows != in->rows || out->cols != in->cols ||
+        out->rows != grad->rows || out->cols != grad->cols)
+        return false;
+
     u64 size = (u64)out->rows * out->cols;
 
     for (u64 i = 0; i < size; i++)
@@ -263,6 +310,12 @@ b32 mat_relu_add_grad(Matrix *out, const Matrix *in, const Matrix *grad)
 
 b32 mat_softmax_add_grad(Matrix *out, const Matrix *softmax_out, const Matrix *grad)
 {
+    if (!out || !softmax_out || !grad)
+        return false;
+    if (out->rows != softmax_out->rows || out->cols != softmax_out->cols ||
+        out->rows != grad->rows || out->cols != grad->cols)
+        return false;
+
     u64 size = (u64)out->rows * out->cols;
 
     for (u64 i = 0; i < size; i++)
@@ -277,6 +330,19 @@ b32 mat_cross_entropy_add_grad(
     Matrix *p_grad, Matrix *q_grad,
     const Matrix *p, const Matrix *q, const Matrix *grad)
 {
+    if (!p || !q || !grad)
+        return false;
+    if (p->rows != q->rows || p->cols != q->cols ||
+        grad->rows != p->rows || grad->cols != p->cols)
+        return false;
+
+    if (p_grad && (p_grad->rows != p->rows || p_grad->cols != p->cols))
+        return false;
+    if (q_grad && (q_grad->rows != q->rows || q_grad->cols != q->cols))
+        return false;
+    if (!p_grad && !q_grad)
+        return true;
+
     u64 size = (u64)p->rows * p->cols;
 
     for (u64 i = 0; i < size; i++)
@@ -284,7 +350,11 @@ b32 mat_cross_entropy_add_grad(
         // Because softmax backward is a pass-through, we calculate the
         // mathematically combined gradient (q - p) here.
         // q is the prediction, p is the target.
-        q_grad->data[i] += (q->data[i] - p->data[i]) * grad->data[i];
+        if (q_grad)
+            q_grad->data[i] += (q->data[i] - p->data[i]) * grad->data[i];
+
+        if (p_grad)
+            p_grad->data[i] += -std::log(q->data[i] + 1e-7f) * grad->data[i];
     }
 
     return true;

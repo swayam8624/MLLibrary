@@ -105,7 +105,7 @@ void *MemArena::push(u64 size, bool zero)
 
     u8 *out = reinterpret_cast<u8 *>(this) + pos_aligned;
 
-    if (!zero)
+    if (zero)
     {
         std::memset(out, 0, size);
     }
@@ -179,6 +179,10 @@ MemArena::Temp MemArena::scratch_get(MemArena **conflicts, u32 num_conflicts)
     if (!selected)
     {
         selected = MemArena::create(64ull << 20, 1ull << 20);
+        if (!selected)
+        {
+            return Temp(nullptr);
+        }
     }
 
     return selected->begin_temp();
