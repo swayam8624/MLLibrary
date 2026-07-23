@@ -46,6 +46,67 @@ DenseTable StandardScaler::transform(const DenseTable& samples) const
     return result;
 }
 
+PCA::PCA(std::size_t components, std::size_t maxIterations, float tolerance)
+    : componentCount_(components), maxIterations_(maxIterations), tolerance_(tolerance)
+{
+    if (components == 0 || maxIterations == 0 || tolerance <= 0.0f) throw std::invalid_argument("PCA parameters are invalid.");
+}
+
+void PCA::fit(const DenseTable& samples)
+{
+    const std::size_t features = validate_table(samples);
+    if (componentCount_ > features) throw std::invalid_argument("PCA component count exceeds feature count.");
+    mean_.assign(features, 0.0f);
+    for (const auto& sample : samples) for (std::size_t feature = 0; feature < features; ++feature) mean_[feature] += sample[feature];
+    for (float& value : mean_) value /= static_cast<float>(samples.size());
+    DenseTable covariance(features, std::vector<float>(features, 0.0f));
+    for (const auto& sample : samples)
+    {
+        for (std::size_t row = 0; row < features; ++row)
+            for (std::size_t column = 0; column < features; ++column)
+                covariance[row][column] += (sample[row] - mean_[row]) * (sample[column] - mean_[column]);
+    }
+    const float inverseCount = 1.0f / static_cast<float>(samples.size());
+    for (auto& row : covariance) for (float& value : row) value *= inverseCount;
+    components_.clear();
+    for (std::size_t component = 0; component < componentCount_; ++component)
+    {
+        std::vector<float> vector(features, 1.0f / std::sqrt(static_cast<float>(features)));
+        for (std::size_t iteration = 0; iteration < maxIterations_; ++iteration)
+        {
+            std::vector<float> next(features, 0.0f);
+            for (std::size_t row = 0; row < features; ++row)
+                for (std::size_t column = 0; column < features; ++column) next[row] += covariance[row][column] * vector[column];
+            float norm = 0.0f;
+            for (float value : next) norm += value * value;
+            norm = std::sqrt(norm);
+            if (norm <= std::numeric_limits<float>::epsilon()) throw std::logic_error("PCA covariance has insufficient remaining variance.");
+            for (float& value : next) value /= norm;
+            float difference = 0.0f;
+            for (std::size_t index = 0; index < features; ++index) { const float delta = next[index] - vector[index]; difference += delta * delta; }
+            vector = std::move(next);
+            if (difference <= tolerance_ * tolerance_) break;
+        }
+        float eigenvalue = 0.0f;
+        for (std::size_t row = 0; row < features; ++row)
+            for (std::size_t column = 0; column < features; ++column) eigenvalue += vector[row] * covariance[row][column] * vector[column];
+        components_.push_back(vector);
+        for (std::size_t row = 0; row < features; ++row)
+            for (std::size_t column = 0; column < features; ++column) covariance[row][column] -= eigenvalue * vector[row] * vector[column];
+    }
+}
+
+DenseTable PCA::transform(const DenseTable& samples) const
+{
+    const std::size_t features = validate_table(samples);
+    if (components_.empty() || features != mean_.size()) throw std::invalid_argument("PCA is unfitted or feature count differs.");
+    DenseTable result(samples.size(), std::vector<float>(components_.size(), 0.0f));
+    for (std::size_t row = 0; row < samples.size(); ++row)
+        for (std::size_t component = 0; component < components_.size(); ++component)
+            for (std::size_t feature = 0; feature < features; ++feature) result[row][component] += (samples[row][feature] - mean_[feature]) * components_[component][feature];
+    return result;
+}
+
 KMeans::KMeans(std::size_t clusters, std::size_t maxIterations, float tolerance)
     : clusters_(clusters), maxIterations_(maxIterations), tolerance_(tolerance)
 {

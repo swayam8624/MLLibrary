@@ -19,6 +19,25 @@ private:
     std::vector<float> scale_;
 };
 
+/// Principal component analysis using centered covariance, deterministic power
+/// iteration, and rank-one deflation. Components are stored in descending
+/// extracted-variance order and transform rows into component coordinates.
+class PCA final {
+public:
+    PCA(std::size_t components, std::size_t maxIterations = 500, float tolerance = 1e-6f);
+    void fit(const DenseTable& samples);
+    [[nodiscard]] DenseTable transform(const DenseTable& samples) const;
+    [[nodiscard]] const DenseTable& components() const noexcept { return components_; }
+    [[nodiscard]] const std::vector<float>& mean() const noexcept { return mean_; }
+
+private:
+    std::size_t componentCount_;
+    std::size_t maxIterations_;
+    float tolerance_;
+    std::vector<float> mean_;
+    DenseTable components_;
+};
+
 /// Lloyd k-means with deterministic first-k initialization and an explicit
 /// iteration cap. The fitted centers remain in feature space supplied to fit.
 class KMeans final {

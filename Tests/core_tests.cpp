@@ -112,6 +112,11 @@ bool test_classical_preprocessing_and_learners()
     const DenseTable standardized = scaler.transform(samples);
     if (!nearly_equal(standardized[0][0] + standardized[3][0], 0.0f)) return false;
 
+    PCA pca(1);
+    pca.fit({ { -2.0f, -2.0f }, { -1.0f, -1.0f }, { 1.0f, 1.0f }, { 2.0f, 2.0f } });
+    const DenseTable projected = pca.transform({ { -2.0f, -2.0f }, { 2.0f, 2.0f } });
+    if (!(std::fabs(projected[0][0]) > 2.0f && nearly_equal(projected[0][0] + projected[1][0], 0.0f, 1e-4f))) return false;
+
     KMeans clusters(2, 50);
     clusters.fit(samples);
     const std::size_t left = clusters.predict({ -1.5f, -1.5f });
