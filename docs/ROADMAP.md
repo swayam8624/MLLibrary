@@ -7,22 +7,19 @@ visual computing as the second major phase.
 
 - CMake build for the current app.
 - KairoMath tensor module as the shared numeric substrate.
-- Compiled `MLLibrary.TensorRuntime` batch-linear classifier using
-  `Kairo.Foundation.Math.Tensor`; implemented and regression-tested. Expand it
-  into Tensor-native layers/autodiff before retiring the compatibility graph.
+- Compiled `MLLibrary.TensorRuntime` batch-linear classifier plus KairoMath
+  Tensor autodiff for dense and convolutional training.
 - Matrix/tensor tests and gradient checks.
 - Regression coverage for the softmax/cross-entropy path where target labels do
   not require gradients; this is now implemented in `MLLibraryCoreTests`.
 - Batched training instead of per-sample gradient accumulation.
-- Optimizers: SGD, momentum, Nesterov, RMSProp, Adam, AdamW. Implemented in
-  the compatibility graph trainer with global-norm clipping and regression
-  coverage; Tensor-native optimizer state remains the migration target.
+- Optimizers: Tensor-native SGD, momentum, Nesterov, RMSProp, Adam, AdamW,
+  schedules, clipping, mixed-precision loss scaling, and full-state checkpoint.
 - Layers: linear, activations, dropout, normalization, convolution, pooling,
   embeddings.
 - Data: CSV, binary tensors, normalization, split/shuffle/batching, metrics.
-- Serialization: model weights, optimizer state, training checkpoints.
-  Parameter checkpoints are implemented with version and shape validation;
-  optimizer-state records are next.
+- Serialization: atomic model, optimizer, schedule-step, and RNG checkpoints
+  with bit-exact interrupted/resumed training coverage.
 
 ## Phase 1.5: Performance Foundation
 
@@ -32,12 +29,20 @@ visual computing as the second major phase.
 - Profiling hooks around kernels, dataloading, and graph execution.
 - Runtime backend dispatch: scalar, threaded, SIMD, and eventually GPU.
 
+Current: dependency DAG scheduling, cancellation, NEON kernels, deterministic
+parallel reductions, packed/batched matmul, and convolution are integrated and
+scalar-parity tested. AVX and sanitizer/performance CI gates remain.
+
 ## Phase 1.75: Interop
 
 - ONNX import for a bounded operator set first: Gemm, MatMul, Add, Relu,
   Softmax, Conv, MaxPool, Flatten, Reshape, Transpose, LayerNormalization.
 - Model graph IR that can represent imported graphs and native training graphs.
 - Weight conversion into KairoMath tensors.
+
+Current: protobuf graph/opset/type/attribute parsing and native MLP/CNN/indexing
+execution are implemented. External-runtime parity and graph optimization
+passes remain.
 
 ## Phase 1.9: Transformers
 
@@ -46,6 +51,9 @@ visual computing as the second major phase.
 - Multi-head attention, MLP blocks, residual streams.
 - Inference first, training second.
 - Mixed precision and checkpointing only after the core kernels are correct.
+
+Current inference: embeddings, RoPE, decoder model, KV cache, deterministic
+sampling, INT8 weights, and bounded layer streaming. Training/LoRA remain.
 
 ## Phase 2: Visual Computing
 

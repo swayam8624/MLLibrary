@@ -200,12 +200,18 @@ The module interfaces are split by subsystem:
 
 KairoMath now also includes `Kairo.Foundation.Math.Tensor`, a module-based
 tensor foundation with row-major dynamic tensors, shape/stride views, elementwise
-ops, reductions, matrix multiply, activations, losses, one-hot encoding, gradient
-clipping, SGD update, and DynamicMatrix interop.
+ops, reductions, rank-2 and batched matrix multiply, Float16/BFloat16/Int8/index
+dtypes, normalization, activations, losses, one-hot encoding, gradient clipping,
+and DynamicMatrix interop.
 `Kairo.Foundation.Math.TensorAutograd` adds dynamic Float32 reverse-mode graphs
-for add/multiply, row-bias broadcasting, matmul, ReLU, MSE, and softmax
-cross-entropy. Its tests validate gradients through central finite differences
-and train a two-layer XOR MLP to full accuracy.
+for dense operations, normalization, convolution, pooling, MSE, and softmax
+cross-entropy. Its tests validate dense, convolution, LayerNorm, and RMSNorm
+gradients through central finite differences and train both MLP and CNN models.
+`TensorTraining` provides six stateful optimizers, schedules, clipping, dynamic
+loss scaling, and atomic checkpoints containing parameters, optimizer moments,
+step position, and RNG state. Exact interrupted/resumed AdamW training is
+bit-for-bit equivalent to uninterrupted training. `TensorData` provides
+deterministic split/shuffle/batching and bounded background prefetch.
 
 When `MLLIB_USE_KAIRO_MATH=ON`, MLLibrary also builds the compiled
 `MLLibrary.TensorRuntime` module. Its first production vertical slice is a
@@ -247,13 +253,12 @@ backend complexity.
 - Add data tools: CSV/binary tensor loading, normalization, shuffling,
   train/validation/test split, batching, and metrics.
 - Add model serialization: weights, optimizer state, and training checkpoints.
-  Versioned, atomic parameter checkpoints are implemented; optimizer-state
-  persistence is the next compatible format extension.
 
-The first Tensor-native autodiff slice is implemented and verified for dense
-MLPs. CNN training still requires differentiable convolution/pooling, and the
-Phase 1 checkpoint exit gate still requires optimizer and random-state
-persistence.
+**Verified result:** the Phase 1 MLP/CNN, numerical-gradient, and exact-resume
+exit gates pass in KairoMath. Float32 master training supports low-precision
+storage/casting and dynamic loss scaling. Remaining breadth includes dropout,
+embedding autograd, and additional dataset file formats; these no longer block
+the declared Phase 1 exit gates.
 
 ### Phase 1.5: Performance Foundation
 
@@ -267,6 +272,13 @@ Goal: make CPU execution fast without changing public model code.
 - Keep scalar fallback behavior available for correctness, debugging, and
   unsupported platforms.
 
+**Implemented:** dependency-aware cancellable scheduling, deterministic
+parallel reductions, runtime NEON detection, SIMD elementwise/reduction kernels,
+packed matrix multiplication, batched matrix multiplication, and scheduled
+NHWC convolution. The combined accelerated build runs eight scalar-parity and
+training tests. AVX implementation, sanitizer matrices, and machine-enforced
+performance regression baselines remain.
+
 ### Phase 1.75: ONNX And Interop
 
 Goal: import useful inference models without pretending to support all ONNX.
@@ -278,6 +290,13 @@ Goal: import useful inference models without pretending to support all ONNX.
 - Convert ONNX weights into Kairo tensors.
 - Lower imported graphs into the native runtime IR.
 - Validate imported inference against known fixtures.
+
+**Implemented:** bounded protobuf parsing for graph/opset/type/attribute
+metadata, Float32 and Int64 initializers, topological validation, and native
+execution for the declared MLP/CNN operator surface plus GELU, Sigmoid, Gather,
+Slice, and Concat. MLP, CNN, pooling, and indexing fixtures pass. External
+ONNX Runtime parity, constant folding, grouped convolution, and broader opset
+semantics remain.
 
 ### Phase 1.9: Transformer Foundation
 
@@ -291,6 +310,12 @@ Goal: support transformer inference first, training second.
 - Add inference checkpoints before training checkpoints.
 - Add transformer training only after tensor autodiff, scheduling, matmul,
   normalization, and checkpointing are stable.
+
+**Implemented for inference:** token embeddings, RoPE, LayerNorm/RMSNorm,
+multi-head causal attention, decoder blocks, a multi-layer decoder model,
+per-layer KV caches, cached/full-logit equivalence, deterministic sampling,
+INT8 dense weights, and byte-bounded layer streaming. Transformer autodiff
+training, LoRA, grouped-query attention, INT4, and benchmark manifests remain.
 
 ### Phase 2: Visual Computing
 
