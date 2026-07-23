@@ -53,3 +53,33 @@ private:
     std::vector<float> weights_;
     float bias_ = 0.0f;
 };
+
+/// Stores a labelled tabular set and predicts by deterministic Euclidean
+/// nearest-neighbor voting. Equal vote counts resolve to the smaller label.
+class KNearestNeighbors final {
+public:
+    explicit KNearestNeighbors(std::size_t neighbors = 5);
+    void fit(DenseTable samples, std::vector<int> labels);
+    [[nodiscard]] int predict(const std::vector<float>& sample) const;
+
+private:
+    std::size_t neighbors_;
+    DenseTable samples_;
+    std::vector<int> labels_;
+};
+
+/// Gaussian naive Bayes for integer class labels. Variance smoothing prevents
+/// a constant feature in one class from producing division by zero.
+class GaussianNaiveBayes final {
+public:
+    explicit GaussianNaiveBayes(float varianceSmoothing = 1e-6f);
+    void fit(const DenseTable& samples, const std::vector<int>& labels);
+    [[nodiscard]] int predict(const std::vector<float>& sample) const;
+
+private:
+    float varianceSmoothing_;
+    std::vector<int> classes_;
+    DenseTable means_;
+    DenseTable variances_;
+    std::vector<float> logPriors_;
+};

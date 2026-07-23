@@ -18,7 +18,7 @@ It currently includes:
 - mini-batch SGD, momentum SGD, Nesterov, RMSProp, Adam, AdamW, and optional
   weight decay and global gradient clipping,
 - dependency-free tabular `StandardScaler`, deterministic farthest-first
-  `KMeans`, and binary `LogisticRegression`,
+  `KMeans`, binary `LogisticRegression`, KNN, and Gaussian naive Bayes,
 - CSV training metrics for visual training dashboards.
 
 The current Xcode target still builds through `.cpp` implementation files and
@@ -269,8 +269,9 @@ Goal: turn the foundations into a complete ML, DL, and data platform.
   tracking.
 
 The current standard C++ build includes a tested tabular baseline subset:
-column standardization, deterministic KMeans, and binary logistic regression.
-PCA, trees, forests, SVM-style learners, Bayes, and KNN remain next so their
+column standardization, deterministic KMeans, binary logistic regression, KNN,
+and Gaussian naive Bayes. PCA, trees, forests, and SVM-style learners remain
+next so their
 data contracts and evaluation behavior can be implemented deliberately.
 - Deployment: model save/load, inference runtimes, quantization, benchmarking,
   and model import/export.

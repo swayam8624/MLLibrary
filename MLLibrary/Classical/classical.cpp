@@ -1,6 +1,7 @@
 #include "classical.hpp"
 
 #include <cmath>
+#include <algorithm>
 #include <limits>
 #include <stdexcept>
 
@@ -147,4 +148,89 @@ int LogisticRegression::predict(const std::vector<float>& sample, float threshol
 {
     if (!(threshold > 0.0f && threshold < 1.0f)) throw std::invalid_argument("Prediction threshold must be between zero and one.");
     return predict_probability(sample) >= threshold ? 1 : 0;
+}
+
+KNearestNeighbors::KNearestNeighbors(std::size_t neighbors) : neighbors_(neighbors)
+{
+    if (neighbors == 0) throw std::invalid_argument("KNearestNeighbors requires at least one neighbor.");
+}
+
+void KNearestNeighbors::fit(DenseTable samples, std::vector<int> labels)
+{
+    validate_table(samples);
+    if (labels.size() != samples.size()) throw std::invalid_argument("KNearestNeighbors labels must match samples.");
+    samples_ = std::move(samples);
+    labels_ = std::move(labels);
+}
+
+int KNearestNeighbors::predict(const std::vector<float>& sample) const
+{
+    if (samples_.empty()) throw std::logic_error("KNearestNeighbors must be fitted before predict.");
+    std::vector<std::pair<float, int>> ranked;
+    ranked.reserve(samples_.size());
+    for (std::size_t row = 0; row < samples_.size(); ++row) ranked.emplace_back(squared_distance(sample, samples_[row]), labels_[row]);
+    std::sort(ranked.begin(), ranked.end(), [](const auto& lhs, const auto& rhs) { return lhs.first == rhs.first ? lhs.second < rhs.second : lhs.first < rhs.first; });
+    std::vector<std::pair<int, std::size_t>> votes;
+    for (std::size_t index = 0; index < std::min(neighbors_, ranked.size()); ++index)
+    {
+        const int label = ranked[index].second;
+        auto found = std::find_if(votes.begin(), votes.end(), [label](const auto& vote) { return vote.first == label; });
+        if (found == votes.end()) votes.emplace_back(label, 1); else ++found->second;
+    }
+    return std::max_element(votes.begin(), votes.end(), [](const auto& lhs, const auto& rhs) { return lhs.second == rhs.second ? lhs.first > rhs.first : lhs.second < rhs.second; })->first;
+}
+
+GaussianNaiveBayes::GaussianNaiveBayes(float varianceSmoothing) : varianceSmoothing_(varianceSmoothing)
+{
+    if (!(varianceSmoothing > 0.0f)) throw std::invalid_argument("GaussianNaiveBayes smoothing must be positive.");
+}
+
+void GaussianNaiveBayes::fit(const DenseTable& samples, const std::vector<int>& labels)
+{
+    const std::size_t features = validate_table(samples);
+    if (labels.size() != samples.size()) throw std::invalid_argument("GaussianNaiveBayes labels must match samples.");
+    classes_ = labels;
+    std::sort(classes_.begin(), classes_.end());
+    classes_.erase(std::unique(classes_.begin(), classes_.end()), classes_.end());
+    means_.assign(classes_.size(), std::vector<float>(features, 0.0f));
+    variances_.assign(classes_.size(), std::vector<float>(features, 0.0f));
+    logPriors_.assign(classes_.size(), 0.0f);
+    std::vector<std::size_t> counts(classes_.size(), 0);
+    for (std::size_t row = 0; row < samples.size(); ++row)
+    {
+        const std::size_t category = static_cast<std::size_t>(std::lower_bound(classes_.begin(), classes_.end(), labels[row]) - classes_.begin());
+        ++counts[category];
+        for (std::size_t feature = 0; feature < features; ++feature) means_[category][feature] += samples[row][feature];
+    }
+    for (std::size_t category = 0; category < classes_.size(); ++category) for (float& value : means_[category]) value /= static_cast<float>(counts[category]);
+    for (std::size_t row = 0; row < samples.size(); ++row)
+    {
+        const std::size_t category = static_cast<std::size_t>(std::lower_bound(classes_.begin(), classes_.end(), labels[row]) - classes_.begin());
+        for (std::size_t feature = 0; feature < features; ++feature) { const float delta = samples[row][feature] - means_[category][feature]; variances_[category][feature] += delta * delta; }
+    }
+    for (std::size_t category = 0; category < classes_.size(); ++category)
+    {
+        logPriors_[category] = std::log(static_cast<float>(counts[category]) / static_cast<float>(samples.size()));
+        for (float& value : variances_[category]) value = value / static_cast<float>(counts[category]) + varianceSmoothing_;
+    }
+}
+
+int GaussianNaiveBayes::predict(const std::vector<float>& sample) const
+{
+    if (classes_.empty() || sample.size() != means_.front().size()) throw std::invalid_argument("GaussianNaiveBayes is unfitted or feature count differs.");
+    std::size_t best = 0;
+    float bestLogProbability = -std::numeric_limits<float>::infinity();
+    constexpr float kLogTwoPi = 1.8378770664f;
+    for (std::size_t category = 0; category < classes_.size(); ++category)
+    {
+        float logProbability = logPriors_[category];
+        for (std::size_t feature = 0; feature < sample.size(); ++feature)
+        {
+            const float variance = variances_[category][feature];
+            const float delta = sample[feature] - means_[category][feature];
+            logProbability += -0.5f * (kLogTwoPi + std::log(variance) + delta * delta / variance);
+        }
+        if (logProbability > bestLogProbability) { best = category; bestLogProbability = logProbability; }
+    }
+    return classes_[best];
 }

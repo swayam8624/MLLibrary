@@ -120,9 +120,17 @@ bool test_classical_preprocessing_and_learners()
 
     LogisticRegression classifier(0.2f, 300, 0.001f);
     classifier.fit(samples, { 0, 0, 1, 1 });
-    return classifier.predict({ -1.5f, -1.5f }) == 0
+    if (!(classifier.predict({ -1.5f, -1.5f }) == 0
         && classifier.predict({ 1.5f, 1.5f }) == 1
-        && classifier.predict_probability({ 1.5f, 1.5f }) > 0.9f;
+        && classifier.predict_probability({ 1.5f, 1.5f }) > 0.9f)) return false;
+
+    KNearestNeighbors nearest(3);
+    nearest.fit(samples, { 0, 0, 1, 1 });
+    if (nearest.predict({ -1.5f, -1.5f }) != 0 || nearest.predict({ 1.5f, 1.5f }) != 1) return false;
+
+    GaussianNaiveBayes bayes;
+    bayes.fit(samples, { 0, 0, 1, 1 });
+    return bayes.predict({ -1.5f, -1.5f }) == 0 && bayes.predict({ 1.5f, 1.5f }) == 1;
 }
 
 bool test_parameter_checkpoint_round_trip()
