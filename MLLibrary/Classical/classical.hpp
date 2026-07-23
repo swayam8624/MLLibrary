@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 using DenseTable = std::vector<std::vector<float>>;
@@ -119,4 +120,71 @@ private:
     DenseTable means_;
     DenseTable variances_;
     std::vector<float> logPriors_;
+};
+
+/// CART-style classification tree using exhaustive midpoint candidates and
+/// Gini impurity. Labels may be any integers. Equal-quality splits resolve by
+/// feature index then threshold so a fixed seed is reproducible.
+class DecisionTreeClassifier final {
+public:
+    DecisionTreeClassifier(
+        std::size_t maxDepth = 16,
+        std::size_t minSamplesSplit = 2,
+        std::size_t minSamplesLeaf = 1,
+        std::size_t maxFeatures = 0,
+        std::uint32_t seed = 0);
+    void fit(const DenseTable& samples, const std::vector<int>& labels);
+    [[nodiscard]] int predict(const std::vector<float>& sample) const;
+    [[nodiscard]] std::size_t node_count() const noexcept { return nodes_.size(); }
+    [[nodiscard]] std::size_t feature_count() const noexcept { return featureCount_; }
+
+private:
+    struct Node final {
+        std::size_t feature = 0;
+        float threshold = 0.0f;
+        std::size_t left = 0;
+        std::size_t right = 0;
+        int prediction = 0;
+        bool leaf = true;
+    };
+
+    std::size_t build_node(
+        const DenseTable& samples,
+        const std::vector<int>& labels,
+        const std::vector<std::size_t>& rows,
+        std::size_t depth);
+
+    std::size_t maxDepth_;
+    std::size_t minSamplesSplit_;
+    std::size_t minSamplesLeaf_;
+    std::size_t maxFeatures_;
+    std::uint32_t seed_;
+    std::size_t featureCount_ = 0;
+    std::vector<Node> nodes_;
+};
+
+/// Deterministic bootstrap-aggregated classification forest. Each tree uses a
+/// seeded bootstrap sample and seeded per-node feature subset. Vote ties resolve
+/// to the smaller integer class label.
+class RandomForestClassifier final {
+public:
+    RandomForestClassifier(
+        std::size_t trees = 100,
+        std::size_t maxDepth = 16,
+        std::size_t minSamplesSplit = 2,
+        std::size_t minSamplesLeaf = 1,
+        std::size_t maxFeatures = 0,
+        std::uint32_t seed = 5489u);
+    void fit(const DenseTable& samples, const std::vector<int>& labels);
+    [[nodiscard]] int predict(const std::vector<float>& sample) const;
+    [[nodiscard]] std::size_t tree_count() const noexcept { return forest_.size(); }
+
+private:
+    std::size_t treeCount_;
+    std::size_t maxDepth_;
+    std::size_t minSamplesSplit_;
+    std::size_t minSamplesLeaf_;
+    std::size_t maxFeatures_;
+    std::uint32_t seed_;
+    std::vector<DecisionTreeClassifier> forest_;
 };

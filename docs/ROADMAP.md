@@ -62,10 +62,10 @@ visual computing as the second major phase.
 
 - Implemented: `StandardScaler`, deterministic farthest-first `KMeans`, PCA
   through covariance power iteration/deflation, full-batch linear/logistic
-  regression, KNN, and Gaussian naive Bayes, with
-  separable-data regression tests.
-- Next: decision trees, forests, and
-  shared evaluation metrics.
+  regression, KNN, Gaussian naive Bayes, deterministic CART classification
+  trees, and seeded bootstrap random forests with nonlinear/reproducibility
+  tests.
+- Next: SVM-style learners and shared evaluation metrics.
 
 ## Do Not Fake
 

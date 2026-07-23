@@ -3,6 +3,9 @@
 #include <cmath>
 #include <algorithm>
 #include <limits>
+#include <map>
+#include <numeric>
+#include <random>
 #include <stdexcept>
 
 namespace {
@@ -330,4 +333,242 @@ int GaussianNaiveBayes::predict(const std::vector<float>& sample) const
         if (logProbability > bestLogProbability) { best = category; bestLogProbability = logProbability; }
     }
     return classes_[best];
+}
+
+namespace {
+
+int majority_label(const std::vector<int>& labels, const std::vector<std::size_t>& rows)
+{
+    std::map<int, std::size_t> counts;
+    for (std::size_t row : rows) ++counts[labels[row]];
+    int bestLabel = counts.begin()->first;
+    std::size_t bestCount = 0;
+    for (const auto& [label, count] : counts)
+    {
+        if (count > bestCount)
+        {
+            bestLabel = label;
+            bestCount = count;
+        }
+    }
+    return bestLabel;
+}
+
+float gini_impurity(const std::map<int, std::size_t>& counts, std::size_t total)
+{
+    if (total == 0) return 0.0f;
+    float squaredProbability = 0.0f;
+    for (const auto& [label, count] : counts)
+    {
+        (void)label;
+        const float probability = static_cast<float>(count) / static_cast<float>(total);
+        squaredProbability += probability * probability;
+    }
+    return 1.0f - squaredProbability;
+}
+
+} // namespace
+
+DecisionTreeClassifier::DecisionTreeClassifier(
+    std::size_t maxDepth,
+    std::size_t minSamplesSplit,
+    std::size_t minSamplesLeaf,
+    std::size_t maxFeatures,
+    std::uint32_t seed)
+    : maxDepth_(maxDepth)
+    , minSamplesSplit_(minSamplesSplit)
+    , minSamplesLeaf_(minSamplesLeaf)
+    , maxFeatures_(maxFeatures)
+    , seed_(seed)
+{
+    if (maxDepth == 0 || minSamplesSplit < 2 || minSamplesLeaf == 0)
+        throw std::invalid_argument("DecisionTreeClassifier parameters are invalid.");
+}
+
+void DecisionTreeClassifier::fit(const DenseTable& samples, const std::vector<int>& labels)
+{
+    featureCount_ = validate_table(samples);
+    if (labels.size() != samples.size()) throw std::invalid_argument("Decision-tree labels must match samples.");
+    if (maxFeatures_ > featureCount_) throw std::invalid_argument("Decision-tree maxFeatures exceeds feature count.");
+    nodes_.clear();
+    std::vector<std::size_t> rows(samples.size());
+    std::iota(rows.begin(), rows.end(), 0);
+    build_node(samples, labels, rows, 0);
+}
+
+std::size_t DecisionTreeClassifier::build_node(
+    const DenseTable& samples,
+    const std::vector<int>& labels,
+    const std::vector<std::size_t>& rows,
+    std::size_t depth)
+{
+    Node node;
+    node.prediction = majority_label(labels, rows);
+    const std::size_t nodeIndex = nodes_.size();
+    nodes_.push_back(node);
+
+    std::map<int, std::size_t> parentCounts;
+    for (std::size_t row : rows) ++parentCounts[labels[row]];
+    if (depth >= maxDepth_ || rows.size() < minSamplesSplit_ || parentCounts.size() == 1)
+        return nodeIndex;
+
+    std::vector<std::size_t> features(featureCount_);
+    std::iota(features.begin(), features.end(), 0);
+    const std::size_t candidateFeatureCount = maxFeatures_ == 0 ? featureCount_ : maxFeatures_;
+    if (candidateFeatureCount < featureCount_)
+    {
+        std::mt19937 generator(seed_ ^ static_cast<std::uint32_t>(nodeIndex * 0x9e3779b9u));
+        std::shuffle(features.begin(), features.end(), generator);
+        features.resize(candidateFeatureCount);
+    }
+
+    const float parentGini = gini_impurity(parentCounts, rows.size());
+    float bestGain = 0.0f;
+    std::size_t bestFeature = 0;
+    float bestThreshold = 0.0f;
+    bool splitFound = false;
+    for (std::size_t feature : features)
+    {
+        std::vector<std::pair<float, int>> ordered;
+        ordered.reserve(rows.size());
+        for (std::size_t row : rows) ordered.emplace_back(samples[row][feature], labels[row]);
+        std::stable_sort(ordered.begin(), ordered.end(), [](const auto& lhs, const auto& rhs)
+        {
+            return lhs.first < rhs.first;
+        });
+
+        std::map<int, std::size_t> leftCounts;
+        std::map<int, std::size_t> rightCounts = parentCounts;
+        for (std::size_t position = 0; position + 1 < ordered.size(); ++position)
+        {
+            ++leftCounts[ordered[position].second];
+            auto right = rightCounts.find(ordered[position].second);
+            if (--right->second == 0) rightCounts.erase(right);
+            const std::size_t leftSize = position + 1;
+            const std::size_t rightSize = ordered.size() - leftSize;
+            if (leftSize < minSamplesLeaf_ || rightSize < minSamplesLeaf_
+                || ordered[position].first == ordered[position + 1].first) continue;
+
+            const float threshold = ordered[position].first
+                + (ordered[position + 1].first - ordered[position].first) * 0.5f;
+            const float weightedGini =
+                static_cast<float>(leftSize) / rows.size() * gini_impurity(leftCounts, leftSize)
+                + static_cast<float>(rightSize) / rows.size() * gini_impurity(rightCounts, rightSize);
+            const float gain = parentGini - weightedGini;
+            constexpr float kTieTolerance = 1e-7f;
+            if (!splitFound || gain > bestGain + kTieTolerance
+                || (std::abs(gain - bestGain) <= kTieTolerance
+                    && (feature < bestFeature || (feature == bestFeature && threshold < bestThreshold))))
+            {
+                splitFound = true;
+                bestGain = gain;
+                bestFeature = feature;
+                bestThreshold = threshold;
+            }
+        }
+    }
+    if (!splitFound || bestGain < -1e-7f) return nodeIndex;
+
+    std::vector<std::size_t> leftRows;
+    std::vector<std::size_t> rightRows;
+    leftRows.reserve(rows.size());
+    rightRows.reserve(rows.size());
+    for (std::size_t row : rows)
+    {
+        (samples[row][bestFeature] <= bestThreshold ? leftRows : rightRows).push_back(row);
+    }
+    if (leftRows.size() < minSamplesLeaf_ || rightRows.size() < minSamplesLeaf_) return nodeIndex;
+
+    const std::size_t left = build_node(samples, labels, leftRows, depth + 1);
+    const std::size_t right = build_node(samples, labels, rightRows, depth + 1);
+    nodes_[nodeIndex].leaf = false;
+    nodes_[nodeIndex].feature = bestFeature;
+    nodes_[nodeIndex].threshold = bestThreshold;
+    nodes_[nodeIndex].left = left;
+    nodes_[nodeIndex].right = right;
+    return nodeIndex;
+}
+
+int DecisionTreeClassifier::predict(const std::vector<float>& sample) const
+{
+    if (nodes_.empty() || sample.size() != featureCount_)
+        throw std::invalid_argument("DecisionTreeClassifier is unfitted or feature count differs.");
+    std::size_t nodeIndex = 0;
+    while (!nodes_[nodeIndex].leaf)
+    {
+        const Node& node = nodes_[nodeIndex];
+        nodeIndex = sample[node.feature] <= node.threshold ? node.left : node.right;
+    }
+    return nodes_[nodeIndex].prediction;
+}
+
+RandomForestClassifier::RandomForestClassifier(
+    std::size_t trees,
+    std::size_t maxDepth,
+    std::size_t minSamplesSplit,
+    std::size_t minSamplesLeaf,
+    std::size_t maxFeatures,
+    std::uint32_t seed)
+    : treeCount_(trees)
+    , maxDepth_(maxDepth)
+    , minSamplesSplit_(minSamplesSplit)
+    , minSamplesLeaf_(minSamplesLeaf)
+    , maxFeatures_(maxFeatures)
+    , seed_(seed)
+{
+    if (trees == 0 || maxDepth == 0 || minSamplesSplit < 2 || minSamplesLeaf == 0)
+        throw std::invalid_argument("RandomForestClassifier parameters are invalid.");
+}
+
+void RandomForestClassifier::fit(const DenseTable& samples, const std::vector<int>& labels)
+{
+    const std::size_t features = validate_table(samples);
+    if (labels.size() != samples.size()) throw std::invalid_argument("Random-forest labels must match samples.");
+    const std::size_t featureSubset = maxFeatures_ == 0
+        ? std::max<std::size_t>(1, static_cast<std::size_t>(std::sqrt(static_cast<double>(features))))
+        : maxFeatures_;
+    if (featureSubset > features) throw std::invalid_argument("Random-forest maxFeatures exceeds feature count.");
+
+    forest_.clear();
+    forest_.reserve(treeCount_);
+    std::mt19937 generator(seed_);
+    std::uniform_int_distribution<std::size_t> sampleDistribution(0, samples.size() - 1);
+    for (std::size_t treeIndex = 0; treeIndex < treeCount_; ++treeIndex)
+    {
+        DenseTable bootstrapSamples;
+        std::vector<int> bootstrapLabels;
+        bootstrapSamples.reserve(samples.size());
+        bootstrapLabels.reserve(labels.size());
+        for (std::size_t row = 0; row < samples.size(); ++row)
+        {
+            const std::size_t selected = sampleDistribution(generator);
+            bootstrapSamples.push_back(samples[selected]);
+            bootstrapLabels.push_back(labels[selected]);
+        }
+        forest_.emplace_back(
+            maxDepth_,
+            minSamplesSplit_,
+            minSamplesLeaf_,
+            featureSubset,
+            seed_ ^ static_cast<std::uint32_t>((treeIndex + 1) * 0x85ebca6bu));
+        forest_.back().fit(bootstrapSamples, bootstrapLabels);
+    }
+}
+
+int RandomForestClassifier::predict(const std::vector<float>& sample) const
+{
+    if (forest_.empty()) throw std::logic_error("RandomForestClassifier must be fitted before predict.");
+    std::map<int, std::size_t> votes;
+    for (const DecisionTreeClassifier& tree : forest_) ++votes[tree.predict(sample)];
+    int bestLabel = votes.begin()->first;
+    std::size_t bestCount = 0;
+    for (const auto& [label, count] : votes)
+    {
+        if (count > bestCount)
+        {
+            bestLabel = label;
+            bestCount = count;
+        }
+    }
+    return bestLabel;
 }

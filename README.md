@@ -319,8 +319,9 @@ Goal: turn the foundations into a complete ML, DL, and data platform.
 
 The current standard C++ build includes a tested tabular baseline subset:
 column standardization, deterministic KMeans, linear/logistic regression, KNN,
-and Gaussian naive Bayes. Trees, forests, and SVM-style learners remain next so their
-data contracts and evaluation behavior can be implemented deliberately.
+Gaussian naive Bayes, a deterministic CART-style classifier, and bootstrap
+random forests with per-node feature subsampling. SVM-style learners and shared
+evaluation suites remain.
 - Deployment: model save/load, inference runtimes, quantization, benchmarking,
   and model import/export.
 

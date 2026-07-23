@@ -139,7 +139,30 @@ bool test_classical_preprocessing_and_learners()
 
     LinearRegression regression(0.08f, 1500);
     regression.fit({ { 0.0f }, { 1.0f }, { 2.0f }, { 3.0f } }, { 1.0f, 3.0f, 5.0f, 7.0f });
-    return nearly_equal(regression.predict({ 4.0f }), 9.0f, 0.02f);
+    if (!nearly_equal(regression.predict({ 4.0f }), 9.0f, 0.02f)) return false;
+
+    const DenseTable xorSamples = {
+        { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f },
+        { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }
+    };
+    const std::vector<int> xorLabels = { 10, 20, 20, 10, 10, 20, 20, 10 };
+    DecisionTreeClassifier tree(4);
+    tree.fit(xorSamples, xorLabels);
+    if (tree.node_count() < 3) return false;
+    for (std::size_t index = 0; index < xorSamples.size(); ++index)
+        if (tree.predict(xorSamples[index]) != xorLabels[index]) return false;
+
+    RandomForestClassifier firstForest(31, 6, 2, 1, 2, 12345u);
+    RandomForestClassifier secondForest(31, 6, 2, 1, 2, 12345u);
+    firstForest.fit(xorSamples, xorLabels);
+    secondForest.fit(xorSamples, xorLabels);
+    if (firstForest.tree_count() != 31 || secondForest.tree_count() != 31) return false;
+    for (const auto& sample : xorSamples)
+    {
+        const int first = firstForest.predict(sample);
+        if (first != secondForest.predict(sample) || (first != 10 && first != 20)) return false;
+    }
+    return true;
 }
 
 bool test_parameter_checkpoint_round_trip()
