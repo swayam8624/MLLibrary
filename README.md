@@ -34,6 +34,10 @@ as the intended public API shape for the next build-system step.
   generation, forward execution, and reverse-mode gradient propagation.
 - `MLLibrary/Training/`: mini-batch training loop and evaluation.
 - `MLLibrary/Data/`: raw matrix loading, MNIST terminal drawing, one-hot labels.
+- `MLLibrary/Contracts/`: canonical Tensor, format, error, and model-capability
+  contracts.
+- `MLLibrary/Benchmark/`: reproducible machine-readable benchmark manifests
+  and measurements.
 - `ModuleInterfaces/`: `.cppm` module declarations mirroring the public API.
 
 ## Kairo Infrastructure Repos
@@ -115,6 +119,22 @@ range/mean/standard deviation and class counts, and embeds a bounded,
 deterministic sample grid. The generated HTML is self-contained and responsive;
 its CTest fixture processes all 10,000 checked-in test samples.
 
+Generate a reproducible scalar matrix benchmark:
+
+```sh
+./build/MLLibraryBenchmark \
+  --output benchmark.json \
+  --size 128 \
+  --iterations 10 \
+  --seed 5489
+```
+
+The versioned JSON records compiler/platform identity, arguments, latency
+percentiles, throughput, peak resident memory, and maximum absolute error. The
+canonical runtime, format, transactional-action, dependency, and supported
+platform contracts are documented in
+[docs/CONTRACTS.md](docs/CONTRACTS.md).
+
 The CTest target exercises matrix multiplication, the softmax/cross-entropy
 gradient path with a non-differentiable target tensor, and each supported
 optimizer on a tiny trainable classifier. This guards the minimum invariant for
@@ -175,6 +195,7 @@ The module interfaces are split by subsystem:
 - `MLLibrary.Model`
 - `MLLibrary.Data`
 - `MLLibrary.Training`
+- `MLLibrary.Contracts`
 - `MLLibrary` as the aggregate module
 
 KairoMath now also includes `Kairo.Foundation.Math.Tensor`, a module-based

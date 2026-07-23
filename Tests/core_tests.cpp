@@ -10,6 +10,7 @@
 #include "Training/training.hpp"
 #include "Training/checkpoint.hpp"
 #include "classical.hpp"
+#include "runtime_contracts.hpp"
 
 namespace {
 
@@ -189,6 +190,77 @@ bool test_parameter_checkpoint_round_trip()
     return passed;
 }
 
+bool test_runtime_contracts_and_capability_selection()
+{
+    using namespace mllibrary::contracts;
+    TensorDescriptor images{
+        .shape = { 32, 28, 28, 1 },
+        .strides = {},
+        .dataType = DataType::Float32,
+        .layout = TensorLayout::NHWC,
+        .device = DeviceType::CPUScalar,
+        .ownership = StorageOwnership::Owned
+    };
+    images.validate();
+    if (!images.contiguous() || images.element_count() != 32u * 28u * 28u
+        || images.byte_size() != images.element_count() * sizeof(float)) return false;
+
+    DatasetFormat dataset{
+        .version = DatasetFormat::CurrentVersion,
+        .identifier = "mnist-batch",
+        .samples = images,
+        .labels = TensorDescriptor{
+            .shape = { 32 },
+            .strides = {},
+            .dataType = DataType::Int64,
+            .layout = TensorLayout::RowMajor,
+            .device = DeviceType::CPUScalar,
+            .ownership = StorageOwnership::Owned
+        },
+        .sampleCount = 32
+    };
+    dataset.validate();
+    CheckpointFormat{}.validate();
+
+    ModelCapabilityRegistry registry;
+    registry.register_model({
+        .modelID = "mnist.cpu",
+        .task = ModelTask::Classification,
+        .dataTypes = { DataType::Float32 },
+        .devices = { DeviceType::CPUScalar },
+        .maximumRank = 4,
+        .maximumInputBytes = MiB(8),
+        .supportsInference = true,
+        .supportsTraining = true
+    });
+    registry.register_model({
+        .modelID = "mnist.metal",
+        .task = ModelTask::Classification,
+        .dataTypes = { DataType::Float32, DataType::Float16 },
+        .devices = { DeviceType::Metal },
+        .maximumRank = 4,
+        .maximumInputBytes = MiB(32),
+        .supportsInference = true,
+        .supportsTraining = false
+    });
+    if (registry.require("mnist.cpu").supportsTraining != true) return false;
+    if (registry.select(ModelTask::Classification, DataType::Float16, DeviceType::Metal,
+            false, 4, images.byte_size()).modelID != "mnist.metal") return false;
+
+    bool rejected = false;
+    try
+    {
+        TensorDescriptor invalid = images;
+        invalid.shape = { 32, 28, 28 };
+        invalid.validate();
+    }
+    catch (const ContractError& error)
+    {
+        rejected = error.code() == ContractErrorCode::UnsupportedLayout;
+    }
+    return rejected;
+}
+
 } // namespace
 
 int main()
@@ -211,6 +283,10 @@ int main()
     }
     if (!test_parameter_checkpoint_round_trip()) {
         std::fputs("checkpoint round-trip test failed\n", stderr);
+        return 1;
+    }
+    if (!test_runtime_contracts_and_capability_selection()) {
+        std::fputs("runtime contract test failed\n", stderr);
         return 1;
     }
     return 0;
