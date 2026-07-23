@@ -100,6 +100,21 @@ The report is a self-contained HTML file with canvas charts for loss, accuracy,
 and learning rate plus the final-run summary. It reads only the metrics CSV and
 does not upload training data or require a web dependency.
 
+Inspect a raw Float32 MNIST-compatible image/label pair:
+
+```sh
+./build/MLLibraryDatasetReport \
+  MLLibrary/test_images.mat \
+  MLLibrary/test_labels.mat \
+  dataset_report.html \
+  64
+```
+
+The dataset report validates the complete binary dataset, computes pixel
+range/mean/standard deviation and class counts, and embeds a bounded,
+deterministic sample grid. The generated HTML is self-contained and responsive;
+its CTest fixture processes all 10,000 checked-in test samples.
+
 The CTest target exercises matrix multiplication, the softmax/cross-entropy
 gradient path with a non-differentiable target tensor, and each supported
 optimizer on a tiny trainable classifier. This guards the minimum invariant for
@@ -262,9 +277,12 @@ vision workflows.
   explanations, and misclassification inspection.
 - Add model graph visualization and kernel profiling views.
 
-**Current phase result:** a dependency-free HTML dashboard is generated from
-training CSV metrics and plots loss, accuracy, and learning rate. It is a
-post-training report, not yet a live visual-computing or computer-vision UI.
+**Current phase result:** dependency-free HTML tools cover training curves and
+dataset inspection. The training report plots loss, accuracy, and learning
+rate. The dataset report validates raw Float32 MNIST data, summarizes class and
+pixel statistics, and renders responsive image samples. Both are post-run
+artifacts; live streaming, augmentation inspection, feature maps, saliency,
+confusion matrices, and model/kernel graphs remain.
 
 ### Phase 3: GPU Backends
 

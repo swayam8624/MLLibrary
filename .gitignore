@@ -8,3 +8,5 @@ compile_commands.json
 *.a
 *.dSYM/
 training_metrics.csv
+.playwright-cli/
+output/

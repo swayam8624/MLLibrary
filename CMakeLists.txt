@@ -36,11 +36,17 @@ add_executable(MLLibrary
 add_executable(MLLibraryTrainingReport
     MLLibrary/Visual/training_report.cpp
 )
+add_executable(MLLibraryDatasetReport
+    MLLibrary/Visual/dataset_report.cpp
+)
 target_compile_features(MLLibraryTrainingReport PRIVATE cxx_std_23)
+target_compile_features(MLLibraryDatasetReport PRIVATE cxx_std_23)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(MLLibraryTrainingReport PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(MLLibraryDatasetReport PRIVATE -Wall -Wextra -Wpedantic)
 elseif(MSVC)
     target_compile_options(MLLibraryTrainingReport PRIVATE /W4)
+    target_compile_options(MLLibraryDatasetReport PRIVATE /W4)
 endif()
 
 target_include_directories(MLLibrary
@@ -122,6 +128,7 @@ endforeach()
 
 install(TARGETS MLLibrary RUNTIME DESTINATION bin)
 install(TARGETS MLLibraryTrainingReport RUNTIME DESTINATION bin)
+install(TARGETS MLLibraryDatasetReport RUNTIME DESTINATION bin)
 if(BUILD_TESTING)
     add_executable(MLLibraryCoreTests
         Tests/core_tests.cpp
@@ -147,4 +154,14 @@ if(BUILD_TESTING)
         target_compile_options(MLLibraryCoreTests PRIVATE /W4)
     endif()
     add_test(NAME MLLibraryCoreTests COMMAND MLLibraryCoreTests)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/test_images.mat"
+       AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/test_labels.mat")
+        add_test(
+            NAME MLLibraryDatasetReportTest
+            COMMAND MLLibraryDatasetReport
+                "${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/test_images.mat"
+                "${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/test_labels.mat"
+                "${CMAKE_CURRENT_BINARY_DIR}/dataset_report_test.html"
+                16)
+    endif()
 endif()
