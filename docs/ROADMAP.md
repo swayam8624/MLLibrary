@@ -31,7 +31,8 @@ visual computing as the second major phase.
 
 Current: dependency DAG scheduling, cancellation, NEON kernels, deterministic
 parallel reductions, packed/batched matmul, and convolution are integrated and
-scalar-parity tested. AVX and sanitizer/performance CI gates remain.
+scalar-parity tested. Phase 1.5 remains open for AVX2/AVX-512, sanitizer
+matrices, fused-kernel breadth, and persisted performance-regression gates.
 
 ## Phase 1.75: Interop
 
@@ -40,9 +41,10 @@ scalar-parity tested. AVX and sanitizer/performance CI gates remain.
 - Model graph IR that can represent imported graphs and native training graphs.
 - Weight conversion into KairoMath tensors.
 
-Current: protobuf graph/opset/type/attribute parsing and native MLP/CNN/indexing
-execution are implemented. External-runtime parity and graph optimization
-passes remain.
+Current: protobuf graph/opset/type/attribute parsing, native MLP/CNN/indexing
+execution, static metadata propagation, constant folding, and dead-value
+elimination are implemented. External-runtime parity and a representative
+transformer fixture remain.
 
 ## Phase 1.9: Transformers
 
@@ -52,8 +54,11 @@ passes remain.
 - Inference first, training second.
 - Mixed precision and checkpointing only after the core kernels are correct.
 
-Current inference: embeddings, RoPE, decoder model, KV cache, deterministic
-sampling, INT8 weights, and bounded layer streaming. Training/LoRA remain.
+Current: token embeddings, sinusoidal/RoPE positions, fused QKV projection,
+decoder inference, KV cache, deterministic sampling, byte tokenization,
+GQA/MQA, INT8/INT4, bounded layer streaming, autodiff corpus training,
+accumulation, exact resume, and LoRA are implemented. Compressed GQA caches,
+activation recomputation, and imported-checkpoint generation remain.
 
 ## Phase 2: Visual Computing
 

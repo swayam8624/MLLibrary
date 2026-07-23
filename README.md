@@ -272,12 +272,13 @@ Goal: make CPU execution fast without changing public model code.
 - Keep scalar fallback behavior available for correctness, debugging, and
   unsupported platforms.
 
-**Implemented:** dependency-aware cancellable scheduling, deterministic
+**Verified foundation:** dependency-aware cancellable scheduling, deterministic
 parallel reductions, runtime NEON detection, SIMD elementwise/reduction kernels,
 packed matrix multiplication, batched matrix multiplication, and scheduled
 NHWC convolution. The combined accelerated build runs eight scalar-parity and
-training tests. AVX implementation, sanitizer matrices, and machine-enforced
-performance regression baselines remain.
+training tests. AVX2/AVX-512 implementation, sanitizer matrices, fused-kernel
+breadth, and machine-enforced performance regression baselines remain before
+the Phase 1.5 exit gate can be called complete.
 
 ### Phase 1.75: ONNX And Interop
 
@@ -291,12 +292,13 @@ Goal: import useful inference models without pretending to support all ONNX.
 - Lower imported graphs into the native runtime IR.
 - Validate imported inference against known fixtures.
 
-**Implemented:** bounded protobuf parsing for graph/opset/type/attribute
+**Verified foundation:** bounded protobuf parsing for graph/opset/type/attribute
 metadata, Float32 and Int64 initializers, topological validation, and native
 execution for the declared MLP/CNN operator surface plus GELU, Sigmoid, Gather,
-Slice, and Concat. MLP, CNN, pooling, and indexing fixtures pass. External
-ONNX Runtime parity, constant folding, grouped convolution, and broader opset
-semantics remain.
+Slice, and Concat. Static metadata propagation, constant folding, and backward
+dead-value elimination are implemented. MLP, CNN, pooling, indexing, and
+optimized-graph fixtures pass. A representative transformer fixture and
+external ONNX Runtime parity remain before the Phase 1.75 exit gate is complete.
 
 ### Phase 1.9: Transformer Foundation
 
@@ -311,11 +313,17 @@ Goal: support transformer inference first, training second.
 - Add transformer training only after tensor autodiff, scheduling, matmul,
   normalization, and checkpointing are stable.
 
-**Implemented for inference:** token embeddings, RoPE, LayerNorm/RMSNorm,
+**Verified foundation:** token embeddings, sinusoidal encoding, RoPE,
+LayerNorm/RMSNorm,
 multi-head causal attention, decoder blocks, a multi-layer decoder model,
-per-layer KV caches, cached/full-logit equivalence, deterministic sampling,
-INT8 dense weights, and byte-bounded layer streaming. Transformer autodiff
-training, LoRA, grouped-query attention, INT4, and benchmark manifests remain.
+per-layer KV caches, cached/full-logit equivalence, fused QKV projection,
+greedy/temperature/top-k/top-p sampling, byte tokenization, grouped/multi-query
+attention, INT8/INT4 dense weights, and byte-bounded layer streaming.
+Tensor-autodiff transformer training overfits a small corpus, supports gradient
+accumulation and exact AdamW checkpoint resume, and includes LoRA. A versioned
+benchmark records tokens/second, peak memory, cache equivalence, and quantized
+error. Compressed GQA KV caches, activation recomputation, and deterministic
+generation from a fully imported external checkpoint remain.
 
 ### Phase 2: Visual Computing
 
