@@ -89,6 +89,7 @@ them through optional CMake targets so scalar builds remain available.
 | Scalar C++ runtime | Verified | Contracted, CI pending |
 | KairoScheduler CPU | Verified | Contracted, CI pending |
 | KairoSIMD NEON | Verified | Scalar fallback |
+| KairoSIMD AVX2/AVX-512 | Cross-compiled, Rosetta scalar fallback | Native x86 execution observation pending |
 | KairoGPU Metal | Verified | Not available |
 | Vulkan/CUDA/WebGPU | Contract only | Not implemented |
 | KairoMath C++ modules | LLVM Clang verified | Compiler-dependent |

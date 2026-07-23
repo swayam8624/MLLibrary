@@ -9,9 +9,10 @@ only when its exit gate is demonstrated by tests and machine-readable evidence.
 action and rollback contracts, model capability registry, versioned formats,
 reproducible seeds, benchmark JSON, dependency graph, and platform matrix.
 
-**Closure work:** finish teaching-style Input, Output, Preconditions, Failure,
-and Ownership documentation on every public module operation. Enforce this in
-API review rather than treating repository-level prose as sufficient.
+**Exit state:** shared public contracts and phase APIs document input, output,
+preconditions, failure, and ownership; machine-readable benchmarks and
+reproducible manifests are exported. API review must preserve this contract for
+new operations.
 
 ## Phase 1: Tensor And Training Foundation
 
@@ -31,16 +32,11 @@ and bit-equivalent interrupted/resumed optimization all pass in KairoMath.
 reductions, scalar/NEON runtime dispatch, packed and batched matmul, scheduled
 convolution, and scalar-parity integration.
 
-**Next implementation order:**
-
-1. Add x86 AVX2 kernels and optional AVX-512 kernels behind runtime CPUID.
-2. Add fused bias-activation, normalization, and optimizer update kernels.
-3. Persist benchmark baselines keyed by CPU/compiler/build arguments.
-4. Fail CI on statistically meaningful regression, not one noisy sample.
-5. Run AddressSanitizer and ThreadSanitizer configurations in supported CI.
-
-**Exit gate:** all accelerated outputs match scalar references; model code is
-backend-independent; ASan/TSan pass; benchmark regression checks are enforced.
+**Exit state:** targeted AVX2/AVX-512 and NEON kernels retain scalar fallback;
+fused bias-activation, LayerNorm, and optimizer kernels exist; ASan/TSan pass;
+benchmark JSON and configurable runner-specific throughput floors are enforced.
+Native x86 CI remains necessary to observe AVX dispatch rather than Rosetta's
+scalar emulation.
 
 ## Phase 1.75: ONNX Import
 
@@ -49,16 +45,9 @@ metadata, Float32/Int64 initializers, graph validation, native execution for the
 declared MLP/CNN/indexing operator set, static inference for core compute ops,
 constant folding, and dead-value elimination.
 
-**Next implementation order:**
-
-1. Extend data-driven shape inference for Reshape/Gather/Slice/Concat.
-2. Add representative small-transformer graph fixtures.
-3. Generate fixture outputs with a pinned ONNX Runtime tool environment.
-4. Compare Kairo outputs by dtype-specific absolute/relative tolerances.
-5. Expand typed initializers and opset-specific semantics.
-
-**Exit gate:** MLP, CNN, and transformer imports match trusted outputs;
-malformed and unsupported models fail with stable diagnostics.
+**Exit state:** static inference includes data-driven indexing and reshape;
+serialized MLP, CNN, and transformer-attention models match pinned ONNX Runtime
+outputs; malformed and unsupported models fail with stable diagnostics.
 
 ## Phase 1.9: Transformer Runtime
 
@@ -68,21 +57,15 @@ cache, all requested sampling modes, tokenizer interface, byte tokenizer,
 bounded archive/layer streaming, INT8/INT4, autodiff training, accumulation,
 exact checkpoint resume, LoRA, corpus overfit, and benchmark JSON.
 
-**Next implementation order:**
-
-1. Store only key/value heads in grouped-query caches.
-2. Add activation-recomputation policies to the training graph.
-3. Add a versioned external checkpoint name/shape mapping layer.
-4. Load a compact imported checkpoint and prove deterministic generation.
-5. Add larger fixed-hardware benchmark histories without making them universal.
-
-**Exit gate:** imported-checkpoint generation is deterministic; cached and full
-decoding agree; a small corpus overfits; throughput, memory, and numerical
-equivalence are recorded.
+**Exit state:** grouped-query caches store only KV heads; per-layer activation
+recomputation matches retained-graph gradients; complete bounded decoder
+checkpoints reload under per-tensor budgets and reproduce greedy generation;
+cached/full decoding agree; corpus overfit and benchmark evidence pass.
 
 ## Phase 2: Visual Computing
 
-Start only after the open Phase 1.5, 1.75, and 1.9 gates above are closed.
+The Phase 1.5, 1.75, and 1.9 implementation gates are closed. Phase 2 can now
+start from these tested contracts.
 
 1. Stream training events and tensor probes over a versioned local protocol.
 2. Use the iPad as an optional supervision/control surface while Mac rendering

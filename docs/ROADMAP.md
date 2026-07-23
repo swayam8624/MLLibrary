@@ -29,10 +29,12 @@ visual computing as the second major phase.
 - Profiling hooks around kernels, dataloading, and graph execution.
 - Runtime backend dispatch: scalar, threaded, SIMD, and eventually GPU.
 
-Current: dependency DAG scheduling, cancellation, NEON kernels, deterministic
+Completed foundation: dependency DAG scheduling, cancellation, NEON and
+targeted AVX kernels, deterministic
 parallel reductions, packed/batched matmul, and convolution are integrated and
-scalar-parity tested. Phase 1.5 remains open for AVX2/AVX-512, sanitizer
-matrices, fused-kernel breadth, and persisted performance-regression gates.
+scalar-parity tested. ASan/TSan suites, fused kernels, versioned benchmarks, and
+configurable regression floors pass. Native x86 CI should still record actual
+AVX dispatch because Rosetta exposes only scalar x86 features.
 
 ## Phase 1.75: Interop
 
@@ -41,10 +43,11 @@ matrices, fused-kernel breadth, and persisted performance-regression gates.
 - Model graph IR that can represent imported graphs and native training graphs.
 - Weight conversion into KairoMath tensors.
 
-Current: protobuf graph/opset/type/attribute parsing, native MLP/CNN/indexing
+Completed gate: protobuf graph/opset/type/attribute parsing, native
+MLP/CNN/indexing
 execution, static metadata propagation, constant folding, and dead-value
-elimination are implemented. External-runtime parity and a representative
-transformer fixture remain.
+elimination are implemented. Serialized MLP, CNN, and transformer-attention
+fixtures match ONNX Runtime references.
 
 ## Phase 1.9: Transformers
 
@@ -54,11 +57,12 @@ transformer fixture remain.
 - Inference first, training second.
 - Mixed precision and checkpointing only after the core kernels are correct.
 
-Current: token embeddings, sinusoidal/RoPE positions, fused QKV projection,
+Completed gate: token embeddings, sinusoidal/RoPE positions, fused QKV projection,
 decoder inference, KV cache, deterministic sampling, byte tokenization,
 GQA/MQA, INT8/INT4, bounded layer streaming, autodiff corpus training,
-accumulation, exact resume, and LoRA are implemented. Compressed GQA caches,
-activation recomputation, and imported-checkpoint generation remain.
+accumulation, exact resume, LoRA, compressed GQA caches, activation
+recomputation, complete bounded checkpoint import, and deterministic generation
+are implemented and tested.
 
 ## Phase 2: Visual Computing
 

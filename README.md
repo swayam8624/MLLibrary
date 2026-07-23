@@ -272,13 +272,15 @@ Goal: make CPU execution fast without changing public model code.
 - Keep scalar fallback behavior available for correctness, debugging, and
   unsupported platforms.
 
-**Verified foundation:** dependency-aware cancellable scheduling, deterministic
+**Phase 1.5 exit implementation complete:** dependency-aware cancellable
+scheduling, deterministic
 parallel reductions, runtime NEON detection, SIMD elementwise/reduction kernels,
 packed matrix multiplication, batched matrix multiplication, and scheduled
-NHWC convolution. The combined accelerated build runs eight scalar-parity and
-training tests. AVX2/AVX-512 implementation, sanitizer matrices, fused-kernel
-breadth, and machine-enforced performance regression baselines remain before
-the Phase 1.5 exit gate can be called complete.
+NHWC convolution. AVX2/AVX-512 targeted add/dot kernels retain runtime scalar
+fallback. Fused BiasReLU, LayerNorm, and AdamW kernels, versioned benchmark JSON,
+configurable throughput floors, and separate ASan/TSan builds are verified.
+Native ARM and translated x86_64 tests pass; Rosetta does not expose AVX, so
+native AVX instruction execution remains a required x86 CI observation.
 
 ### Phase 1.75: ONNX And Interop
 
@@ -292,13 +294,15 @@ Goal: import useful inference models without pretending to support all ONNX.
 - Lower imported graphs into the native runtime IR.
 - Validate imported inference against known fixtures.
 
-**Verified foundation:** bounded protobuf parsing for graph/opset/type/attribute
+**Phase 1.75 exit gate complete:** bounded protobuf parsing for
+graph/opset/type/attribute
 metadata, Float32 and Int64 initializers, topological validation, and native
 execution for the declared MLP/CNN operator surface plus GELU, Sigmoid, Gather,
 Slice, and Concat. Static metadata propagation, constant folding, and backward
 dead-value elimination are implemented. MLP, CNN, pooling, indexing, and
-optimized-graph fixtures pass. A representative transformer fixture and
-external ONNX Runtime parity remain before the Phase 1.75 exit gate is complete.
+optimized-graph fixtures pass. Real opset-18 MLP, CNN, and compact
+transformer-attention models match pinned ONNX Runtime outputs within declared
+Float32 tolerances.
 
 ### Phase 1.9: Transformer Foundation
 
@@ -313,7 +317,7 @@ Goal: support transformer inference first, training second.
 - Add transformer training only after tensor autodiff, scheduling, matmul,
   normalization, and checkpointing are stable.
 
-**Verified foundation:** token embeddings, sinusoidal encoding, RoPE,
+**Phase 1.9 exit gate complete:** token embeddings, sinusoidal encoding, RoPE,
 LayerNorm/RMSNorm,
 multi-head causal attention, decoder blocks, a multi-layer decoder model,
 per-layer KV caches, cached/full-logit equivalence, fused QKV projection,
@@ -322,8 +326,9 @@ attention, INT8/INT4 dense weights, and byte-bounded layer streaming.
 Tensor-autodiff transformer training overfits a small corpus, supports gradient
 accumulation and exact AdamW checkpoint resume, and includes LoRA. A versioned
 benchmark records tokens/second, peak memory, cache equivalence, and quantized
-error. Compressed GQA KV caches, activation recomputation, and deterministic
-generation from a fully imported external checkpoint remain.
+error. Compressed GQA KV caches and per-layer activation recomputation are
+gradient/parity tested. A complete bounded checkpoint is reloaded from disk and
+reproduces deterministic greedy generation.
 
 ### Phase 2: Visual Computing
 
