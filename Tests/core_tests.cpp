@@ -1,11 +1,14 @@
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
+#include <string>
 
 #include "arena.h"
 #include "base.h"
 #include "matrix.hpp"
 #include "model.hpp"
 #include "Training/training.hpp"
+#include "Training/checkpoint.hpp"
 #include "classical.hpp"
 
 namespace {
@@ -122,6 +125,30 @@ bool test_classical_preprocessing_and_learners()
         && classifier.predict_probability({ 1.5f, 1.5f }) > 0.9f;
 }
 
+bool test_parameter_checkpoint_round_trip()
+{
+    const std::filesystem::path path = "/tmp/mllibrary-checkpoint-test.bin";
+    std::filesystem::remove(path);
+    MemArena *arena = MemArena::create(MiB(8), KiB(64));
+    ModelContext* model = model_create(arena);
+    ModelVar* parameter = mv_create(arena, model, 2, 1, MV_FLAG_REQUIRES_GRAD | MV_FLAG_PARAMETER);
+    ModelVar* target = mv_create(arena, model, 2, 1, MV_FLAG_DESIRED_OUTPUT);
+    mv_cross_entropy(arena, model, target, parameter, MV_FLAG_COST);
+    model_compile(arena, model);
+    parameter->val->data[0] = 1.25f;
+    parameter->val->data[1] = -3.5f;
+    std::string error;
+    const bool saved = model_save_checkpoint(model, path.c_str(), &error);
+    parameter->val->data[0] = 0.0f;
+    parameter->val->data[1] = 0.0f;
+    const bool loaded = model_load_checkpoint(model, path.c_str(), &error);
+    const bool passed = saved && loaded && nearly_equal(parameter->val->data[0], 1.25f)
+        && nearly_equal(parameter->val->data[1], -3.5f);
+    std::filesystem::remove(path);
+    MemArena::destroy(arena);
+    return passed;
+}
+
 } // namespace
 
 int main()
@@ -140,6 +167,10 @@ int main()
     }
     if (!test_classical_preprocessing_and_learners()) {
         std::fputs("classical ML test failed\n", stderr);
+        return 1;
+    }
+    if (!test_parameter_checkpoint_round_trip()) {
+        std::fputs("checkpoint round-trip test failed\n", stderr);
         return 1;
     }
     return 0;

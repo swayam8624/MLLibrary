@@ -21,6 +21,8 @@ visual computing as the second major phase.
   embeddings.
 - Data: CSV, binary tensors, normalization, split/shuffle/batching, metrics.
 - Serialization: model weights, optimizer state, training checkpoints.
+  Parameter checkpoints are implemented with version and shape validation;
+  optimizer-state records are next.
 
 ## Phase 1.5: Performance Foundation
 

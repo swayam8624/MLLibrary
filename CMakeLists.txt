@@ -20,6 +20,7 @@ add_executable(MLLibrary
     MLLibrary/Math/matrix.cpp
     MLLibrary/Model/model.cpp
     MLLibrary/Training/training.cpp
+    MLLibrary/Training/checkpoint.cpp
     MLLibrary/Data/data.cpp
     MLLibrary/Classical/classical.cpp
 )
@@ -102,6 +103,7 @@ if(BUILD_TESTING)
         MLLibrary/Math/matrix.cpp
         MLLibrary/Model/model.cpp
         MLLibrary/Training/training.cpp
+        MLLibrary/Training/checkpoint.cpp
         MLLibrary/Classical/classical.cpp
     )
     target_include_directories(MLLibraryCoreTests PRIVATE

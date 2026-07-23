@@ -189,6 +189,8 @@ backend complexity.
 - Add data tools: CSV/binary tensor loading, normalization, shuffling,
   train/validation/test split, batching, and metrics.
 - Add model serialization: weights, optimizer state, and training checkpoints.
+  Versioned, atomic parameter checkpoints are implemented; optimizer-state
+  persistence is the next compatible format extension.
 
 ### Phase 1.5: Performance Foundation
 
