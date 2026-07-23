@@ -60,8 +60,8 @@ visual computing as the second major phase.
 
 ## Phase 4: Classical Baselines
 
-- Implemented: `StandardScaler`, deterministic farthest-first `KMeans`, binary
-  full-batch `LogisticRegression`, KNN, and Gaussian naive Bayes, with
+- Implemented: `StandardScaler`, deterministic farthest-first `KMeans`,
+  full-batch linear/logistic regression, KNN, and Gaussian naive Bayes, with
   separable-data regression tests.
 - Next: linear regression, PCA, decision trees, forests, and
   shared evaluation metrics.

@@ -54,6 +54,24 @@ private:
     float bias_ = 0.0f;
 };
 
+/// Single-output linear regression optimized by deterministic full-batch
+/// gradient descent. Targets are continuous scalar values.
+class LinearRegression final {
+public:
+    LinearRegression(float learningRate = 0.05f, std::size_t iterations = 1000, float l2 = 0.0f);
+    void fit(const DenseTable& samples, const std::vector<float>& targets);
+    [[nodiscard]] float predict(const std::vector<float>& sample) const;
+    [[nodiscard]] const std::vector<float>& weights() const noexcept { return weights_; }
+    [[nodiscard]] float bias() const noexcept { return bias_; }
+
+private:
+    float learningRate_;
+    std::size_t iterations_;
+    float l2_;
+    std::vector<float> weights_;
+    float bias_ = 0.0f;
+};
+
 /// Stores a labelled tabular set and predicts by deterministic Euclidean
 /// nearest-neighbor voting. Equal vote counts resolve to the smaller label.
 class KNearestNeighbors final {

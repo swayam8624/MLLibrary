@@ -150,6 +150,42 @@ int LogisticRegression::predict(const std::vector<float>& sample, float threshol
     return predict_probability(sample) >= threshold ? 1 : 0;
 }
 
+LinearRegression::LinearRegression(float learningRate, std::size_t iterations, float l2)
+    : learningRate_(learningRate), iterations_(iterations), l2_(l2)
+{
+    if (!(learningRate > 0.0f) || iterations == 0 || l2 < 0.0f) throw std::invalid_argument("LinearRegression parameters are invalid.");
+}
+
+void LinearRegression::fit(const DenseTable& samples, const std::vector<float>& targets)
+{
+    const std::size_t features = validate_table(samples);
+    if (targets.size() != samples.size()) throw std::invalid_argument("LinearRegression targets must match samples.");
+    weights_.assign(features, 0.0f);
+    bias_ = 0.0f;
+    const float inverseCount = 1.0f / static_cast<float>(samples.size());
+    for (std::size_t iteration = 0; iteration < iterations_; ++iteration)
+    {
+        std::vector<float> gradient(features, 0.0f);
+        float biasGradient = 0.0f;
+        for (std::size_t row = 0; row < samples.size(); ++row)
+        {
+            const float error = predict(samples[row]) - targets[row];
+            for (std::size_t feature = 0; feature < features; ++feature) gradient[feature] += error * samples[row][feature];
+            biasGradient += error;
+        }
+        for (std::size_t feature = 0; feature < features; ++feature) weights_[feature] -= learningRate_ * (gradient[feature] * inverseCount + l2_ * weights_[feature]);
+        bias_ -= learningRate_ * biasGradient * inverseCount;
+    }
+}
+
+float LinearRegression::predict(const std::vector<float>& sample) const
+{
+    if (weights_.empty() || sample.size() != weights_.size()) throw std::invalid_argument("LinearRegression is unfitted or feature count differs.");
+    float result = bias_;
+    for (std::size_t feature = 0; feature < sample.size(); ++feature) result += sample[feature] * weights_[feature];
+    return result;
+}
+
 KNearestNeighbors::KNearestNeighbors(std::size_t neighbors) : neighbors_(neighbors)
 {
     if (neighbors == 0) throw std::invalid_argument("KNearestNeighbors requires at least one neighbor.");

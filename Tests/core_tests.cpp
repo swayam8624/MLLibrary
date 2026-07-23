@@ -130,7 +130,11 @@ bool test_classical_preprocessing_and_learners()
 
     GaussianNaiveBayes bayes;
     bayes.fit(samples, { 0, 0, 1, 1 });
-    return bayes.predict({ -1.5f, -1.5f }) == 0 && bayes.predict({ 1.5f, 1.5f }) == 1;
+    if (bayes.predict({ -1.5f, -1.5f }) != 0 || bayes.predict({ 1.5f, 1.5f }) != 1) return false;
+
+    LinearRegression regression(0.08f, 1500);
+    regression.fit({ { 0.0f }, { 1.0f }, { 2.0f }, { 3.0f } }, { 1.0f, 3.0f, 5.0f, 7.0f });
+    return nearly_equal(regression.predict({ 4.0f }), 9.0f, 0.02f);
 }
 
 bool test_parameter_checkpoint_round_trip()
