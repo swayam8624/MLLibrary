@@ -128,6 +128,17 @@ That configuration includes a module-consuming integration test for
 softmax/cross-entropy inference path. This confirms the C++ module graph is
 used by MLLibrary's build rather than only linked transitively.
 
+To include the Apple Metal backend and the GPU linear-forward equivalence test:
+
+```sh
+cmake -S . -B build-gpu -G Ninja \
+  -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
+  -DMLLIB_USE_KAIRO_MATH=ON \
+  -DMLLIB_USE_KAIRO_GPU=ON
+cmake --build build-gpu
+ctest --test-dir build-gpu --output-on-failure
+```
+
 The target uses a file-system synchronized group. It currently compiles normal
 C++ sources with `.cpp` files. The `.cppm` interfaces are outside the
 synchronized target folder so they do not disturb the existing build.
@@ -162,6 +173,10 @@ batch-linear classifier with Tensor-owned weights and bias, batched forward
 logits, stable softmax/cross-entropy, analytic gradients, SGD updates,
 prediction, and accuracy. The module test proves loss reduction on a batched
 two-class dataset; it is the migration target for the legacy arena-backed graph.
+With `MLLIB_USE_KAIRO_GPU=ON`, `MLLibrary.TensorGPURuntime` executes the dense
+matrix product through Metal and applies classifier bias to the synchronized
+host result. Its integration test compares every output against the scalar
+Tensor path.
 
 The safe migration sequence is:
 
@@ -264,10 +279,12 @@ Goal: accelerate tensor kernels with explicit backend implementations.
 
 **Current phase result:** `KairoGPU` has a real Apple Metal vertical slice:
 device discovery, capability reporting, owned shared buffers, byte upload and
-readback, and a tested Float32 vector-add compute dispatch. It is not yet a
-general GPU tensor backend. Pipeline caching, generic resource binding, queued
-asynchronous execution, tiled matmul/reductions, profiling, and Tensor runtime
-dispatch are the remaining completion work for this phase.
+readback, cached compute pipelines/queues, Float32 vector addition, and a
+16-by-16 threadgroup-tiled Float32 matmul. `KairoMath.TensorGPU` dispatches
+contiguous Tensor add/matmul through that backend, and MLLibrary validates a GPU
+linear-classifier forward pass against its CPU reference. Persistent
+GPU-resident Tensor storage, generic resource binding, queued asynchronous
+execution, reductions, convolution, and profiling remain completion work.
 
 ### Phase 4: Full ML Platform
 

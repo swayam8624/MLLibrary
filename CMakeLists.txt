@@ -9,9 +9,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(MLLIB_USE_KAIRO_MATH "Build and link the KairoMath module target when using an upstream module-capable compiler." OFF)
+option(MLLIB_USE_KAIRO_GPU "Build the optional Metal Tensor execution integration." OFF)
 set(MLLIB_KAIRO_FOUNDATION_DIR
     "/Users/swayamsingal/Desktop/Programming/Kairo/Foundation"
     CACHE PATH "Path to the Kairo Foundation checkout.")
+set(MLLIB_KAIRO_GPU_DIR
+    "/Users/swayamsingal/Desktop/Programming/Kairo/KairoGPU"
+    CACHE PATH "Path to the KairoGPU checkout.")
+
+if(MLLIB_USE_KAIRO_GPU AND NOT MLLIB_USE_KAIRO_MATH)
+    message(FATAL_ERROR "MLLIB_USE_KAIRO_GPU requires MLLIB_USE_KAIRO_MATH.")
+endif()
 
 add_executable(MLLibrary
     MLLibrary/main.cpp
@@ -57,6 +65,10 @@ endif()
 if(MLLIB_USE_KAIRO_MATH)
     set(KAIRO_MATH_DIR "${MLLIB_KAIRO_FOUNDATION_DIR}/KairoMath")
     if(EXISTS "${KAIRO_MATH_DIR}/CMakeLists.txt")
+        if(MLLIB_USE_KAIRO_GPU)
+            set(KAIRO_MATH_USE_GPU ON CACHE BOOL "Enable KairoMath GPU execution." FORCE)
+            set(KAIRO_GPU_DIR "${MLLIB_KAIRO_GPU_DIR}" CACHE PATH "Path to KairoGPU." FORCE)
+        endif()
         add_subdirectory("${KAIRO_MATH_DIR}" "${CMAKE_BINARY_DIR}/KairoMath")
         target_link_libraries(MLLibrary PRIVATE KairoMath)
         target_compile_definitions(MLLibrary PRIVATE MLLIB_HAS_KAIRO_MATH=1)
@@ -69,11 +81,26 @@ if(MLLIB_USE_KAIRO_MATH)
         )
         target_link_libraries(MLLibraryTensorRuntime PUBLIC KairoMath)
         target_compile_features(MLLibraryTensorRuntime PUBLIC cxx_std_23)
+        if(MLLIB_USE_KAIRO_GPU)
+            target_sources(MLLibraryTensorRuntime
+                PUBLIC
+                    FILE_SET CXX_MODULES
+                    BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary
+                    FILES MLLibrary/TensorGPURuntime.cppm
+            )
+            target_link_libraries(MLLibraryTensorRuntime PUBLIC KairoGPU)
+        endif()
         if(BUILD_TESTING)
             add_executable(MLLibraryTensorIntegrationTests Tests/tensor_integration.cpp)
             target_link_libraries(MLLibraryTensorIntegrationTests PRIVATE KairoMath MLLibraryTensorRuntime)
             target_compile_features(MLLibraryTensorIntegrationTests PRIVATE cxx_std_23)
             add_test(NAME MLLibraryTensorIntegrationTests COMMAND MLLibraryTensorIntegrationTests)
+            if(MLLIB_USE_KAIRO_GPU)
+                add_executable(MLLibraryTensorGPUIntegrationTests Tests/tensor_gpu_integration.cpp)
+                target_link_libraries(MLLibraryTensorGPUIntegrationTests PRIVATE KairoMath KairoGPU MLLibraryTensorRuntime)
+                target_compile_features(MLLibraryTensorGPUIntegrationTests PRIVATE cxx_std_23)
+                add_test(NAME MLLibraryTensorGPUIntegrationTests COMMAND MLLibraryTensorGPUIntegrationTests)
+            endif()
         endif()
     else()
         message(FATAL_ERROR "MLLIB_USE_KAIRO_MATH is ON, but KairoMath was not found at: ${KAIRO_MATH_DIR}")
