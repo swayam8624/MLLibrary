@@ -202,6 +202,10 @@ KairoMath now also includes `Kairo.Foundation.Math.Tensor`, a module-based
 tensor foundation with row-major dynamic tensors, shape/stride views, elementwise
 ops, reductions, matrix multiply, activations, losses, one-hot encoding, gradient
 clipping, SGD update, and DynamicMatrix interop.
+`Kairo.Foundation.Math.TensorAutograd` adds dynamic Float32 reverse-mode graphs
+for add/multiply, row-bias broadcasting, matmul, ReLU, MSE, and softmax
+cross-entropy. Its tests validate gradients through central finite differences
+and train a two-layer XOR MLP to full accuracy.
 
 When `MLLIB_USE_KAIRO_MATH=ON`, MLLibrary also builds the compiled
 `MLLibrary.TensorRuntime` module. Its first production vertical slice is a
@@ -245,6 +249,11 @@ backend complexity.
 - Add model serialization: weights, optimizer state, and training checkpoints.
   Versioned, atomic parameter checkpoints are implemented; optimizer-state
   persistence is the next compatible format extension.
+
+The first Tensor-native autodiff slice is implemented and verified for dense
+MLPs. CNN training still requires differentiable convolution/pooling, and the
+Phase 1 checkpoint exit gate still requires optimizer and random-state
+persistence.
 
 ### Phase 1.5: Performance Foundation
 
