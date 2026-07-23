@@ -60,11 +60,14 @@ have been pushed to GitHub:
   native macOS ScreenCaptureKit/Vision adapter with stable two-hand rectangle
   recognition and reversible, in-memory capture previews.
 
-The initial commits build as independent C++23 module packages with CMake,
-Ninja, and upstream LLVM Clang. They are intentionally foundation-first:
-`KairoScheduler` and `KairoSIMD` already contain usable CPU primitives, while
-`KairoGPU`, `KairoONNX`, and `KairoTransformers` define stable contracts before
-heavy implementation begins.
+The packages build as independent C++23 module projects with CMake, Ninja, and
+upstream LLVM Clang. The implemented vertical slices are deliberately bounded:
+KairoScheduler has exception-safe task groups; KairoSIMD has Apple-Silicon NEON
+paths; KairoONNX parses bounded graph metadata and Float32 initializers into
+Kairo tensors; KairoTransformers executes a Tensor-backed decoder block; and
+KairoGPU discovers Metal devices, manages shared buffers, and runs a validated
+Float32 vector-add compute dispatch. General ONNX lowering, reusable GPU
+pipelines, GPU matmul, and transformer training are still unfinished.
 
 ## Local Multimodal Device-Agent Direction
 
@@ -244,6 +247,10 @@ vision workflows.
   explanations, and misclassification inspection.
 - Add model graph visualization and kernel profiling views.
 
+**Current phase result:** a dependency-free HTML dashboard is generated from
+training CSV metrics and plots loss, accuracy, and learning rate. It is a
+post-training report, not yet a live visual-computing or computer-vision UI.
+
 ### Phase 3: GPU Backends
 
 Goal: accelerate tensor kernels with explicit backend implementations.
@@ -254,6 +261,13 @@ Goal: accelerate tensor kernels with explicit backend implementations.
 - Move tensor kernels behind backend dispatch: scalar, threaded CPU, SIMD CPU,
   and GPU.
 - Keep CPU reference kernels as the correctness oracle.
+
+**Current phase result:** `KairoGPU` has a real Apple Metal vertical slice:
+device discovery, capability reporting, owned shared buffers, byte upload and
+readback, and a tested Float32 vector-add compute dispatch. It is not yet a
+general GPU tensor backend. Pipeline caching, generic resource binding, queued
+asynchronous execution, tiled matmul/reductions, profiling, and Tensor runtime
+dispatch are the remaining completion work for this phase.
 
 ### Phase 4: Full ML Platform
 
@@ -274,6 +288,12 @@ and Gaussian naive Bayes. Trees, forests, and SVM-style learners remain next so 
 data contracts and evaluation behavior can be implemented deliberately.
 - Deployment: model save/load, inference runtimes, quantization, benchmarking,
   and model import/export.
+
+**Phase 4 entry criteria:** retain CPU reference tests while promoting
+Tensor-backed dense, convolution, pooling, normalization, optimizer, dataset,
+checkpoint, and evaluation paths to stable public contracts. Every added
+algorithm needs deterministic fixtures, serialization expectations, and a
+benchmarkable inference/training path before it is presented as complete.
 
 ## Final Capability Target
 
