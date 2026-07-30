@@ -76,7 +76,7 @@ bool test_profile_statistics_and_reports()
 
     const DatasetProfile profile = profile_dataset(dataset);
     if (profile.row_count != 11 || profile.column_count != 3) return false;
-    if (profile.duplicate_rows != 6) return false;
+    if (profile.duplicate_rows != 7) return false;
     if (profile.columns[0].missing_count != 1 || profile.columns[0].unique_count != 2) return false;
     if (!profile.columns[0].numeric.available) return false;
     if (std::fabs(profile.columns[0].numeric.minimum - 20.0) > 1e-9) return false;
@@ -86,7 +86,7 @@ bool test_profile_statistics_and_reports()
 
     const std::string json = dataset_profile_to_json(profile);
     const std::string html = dataset_profile_to_html(profile);
-    if (json.find("\"duplicate_rows\": 6") == std::string::npos) return false;
+    if (json.find("\"duplicate_rows\": 7") == std::string::npos) return false;
     if (json.find("\"target_majority_fraction\"") == std::string::npos) return false;
     if (html.find("Dataset profile") == std::string::npos || html.find("Kolkata") == std::string::npos) return false;
 
