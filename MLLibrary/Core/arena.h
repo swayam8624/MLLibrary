@@ -1,13 +1,13 @@
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 using i32 = std::int32_t;
 using b32 = std::int32_t;
-
 
 //======================
 // Platform API (forward)
@@ -26,7 +26,7 @@ b32   plat_mem_release(void* ptr, u64 size);
 
 class MemArena {
 public:
-    class Temp;   // ✅ FIX: forward declaration
+    class Temp;
 
     // Creation / destruction
     static MemArena* create(u64 reserve_size, u64 commit_size);
@@ -34,6 +34,7 @@ public:
 
     // Core allocation
     void* push(u64 size, bool zero = true);
+    void* push_aligned(u64 size, u64 alignment, bool zero = true);
     void  pop(u64 size);
     void  pop_to(u64 pos);
     void  clear();
@@ -112,13 +113,13 @@ inline T* push_struct(MemArena* arena, bool zero = true) {
     if (!arena) {
         return nullptr;
     }
-    return static_cast<T*>(arena->push(sizeof(T), zero));
+    return static_cast<T*>(arena->push_aligned(sizeof(T), alignof(T), zero));
 }
 
 template <typename T>
 inline T* push_array(MemArena* arena, u64 count, bool zero = true) {
-    if (!arena) {
+    if (!arena || count > std::numeric_limits<u64>::max() / sizeof(T)) {
         return nullptr;
     }
-    return static_cast<T*>(arena->push(sizeof(T) * count, zero));
+    return static_cast<T*>(arena->push_aligned(sizeof(T) * count, alignof(T), zero));
 }
