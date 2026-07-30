@@ -8,6 +8,8 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+
 #include "matrix.hpp"
 #include "model.hpp"
 
@@ -50,16 +52,33 @@ struct ModelTrainingDesc {
     // A non-positive value disables global-norm clipping.
     f32 max_gradient_norm = 0.0f;
 
+    // Every training call owns an independent deterministic random stream.
+    std::uint64_t seed = 5489u;
+    // Reject a batch before applying its update when loss, gradients, optimizer
+    // state, or candidate parameters become non-finite.
+    bool reject_non_finite = true;
+
     // Optional CSV path for visual training dashboards.
     // Columns: epoch,accuracy,cost,learning_rate
     const char* metrics_csv_path = nullptr;
+};
+
+struct ModelTrainingResult {
+    bool success = false;
+    u32 completed_epochs = 0;
+    std::uint64_t completed_steps = 0;
+    f32 final_loss = 0.0f;
+    f32 final_accuracy = 0.0f;
+    std::string error;
+
+    explicit operator bool() const noexcept { return success; }
 };
 
 //======================
 // API
 //======================
 
-void model_train(
+[[nodiscard]] ModelTrainingResult model_train(
     ModelContext* model,
     const ModelTrainingDesc* desc
 );
