@@ -210,12 +210,21 @@ if(BUILD_TESTING)
     add_executable(MLLibraryCoreTests Tests/core_tests.cpp)
     target_link_libraries(MLLibraryCoreTests PRIVATE MLLibrary::Core)
     target_compile_features(MLLibraryCoreTests PRIVATE cxx_std_23)
+
+    add_executable(MLLibraryArenaTests Tests/arena_tests.cpp)
+    target_link_libraries(MLLibraryArenaTests PRIVATE MLLibrary::Core)
+    target_compile_features(MLLibraryArenaTests PRIVATE cxx_std_23)
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_compile_options(MLLibraryCoreTests PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
+        target_compile_options(MLLibraryArenaTests PRIVATE -Wall -Wextra -Wpedantic)
     elseif(MSVC)
         target_compile_options(MLLibraryCoreTests PRIVATE /W4)
+        target_compile_options(MLLibraryArenaTests PRIVATE /W4)
     endif()
+
     add_test(NAME MLLibraryCoreTests COMMAND MLLibraryCoreTests)
+    add_test(NAME MLLibraryArenaTests COMMAND MLLibraryArenaTests)
     add_test(
         NAME MLLibraryBenchmarkTest
         COMMAND MLLibraryBenchmark
