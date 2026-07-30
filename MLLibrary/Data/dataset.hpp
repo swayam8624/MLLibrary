@@ -121,11 +121,15 @@ public:
     [[nodiscard]] std::uint64_t fingerprint64() const noexcept;
     [[nodiscard]] std::string fingerprint() const;
 
+    // Preserves schema and source metadata while selecting rows in exactly the
+    // supplied order. Duplicate indices are permitted intentionally for future
+    // bootstrap and resampling workflows.
+    [[nodiscard]] Dataset select_rows(
+        const std::vector<std::size_t>& indices) const;
     [[nodiscard]] DatasetSplit split(const DatasetSplitOptions& options = {}) const;
 
 private:
     void validate_rows() const;
-    [[nodiscard]] Dataset select_rows(const std::vector<std::size_t>& indices) const;
 
     DatasetSchema schema_;
     std::vector<DataRow> rows_;
