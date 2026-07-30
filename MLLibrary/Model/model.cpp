@@ -27,17 +27,26 @@ ModelVar *mv_create(
     MemArena *arena, ModelContext *model,
     u32 rows, u32 cols, u32 flags)
 {
+    if (!arena || !model || rows == 0 || cols == 0)
+        return nullptr;
+
     ModelVar *out = push_struct<ModelVar>(arena);
+    if (!out)
+        return nullptr;
 
     out->index = model->num_vars++;
     out->flags = flags;
     out->op = MV_OP_CREATE;
 
     out->val = mat_create(arena, rows, cols);
+    if (!out->val)
+        return nullptr;
 
     if (flags & MV_FLAG_REQUIRES_GRAD)
     {
         out->grad = mat_create(arena, rows, cols);
+        if (!out->grad)
+            return nullptr;
         mat_clear(out->grad);
     }
     else
@@ -65,6 +74,9 @@ static ModelVar *mv_unary(
     MemArena *arena, ModelContext *model,
     ModelVar *input, u32 flags, ModelVarOp op)
 {
+    if (!input || !input->val)
+        return nullptr;
+
     if (input->flags & MV_FLAG_REQUIRES_GRAD)
     {
         flags |= MV_FLAG_REQUIRES_GRAD;
@@ -75,6 +87,8 @@ static ModelVar *mv_unary(
         input->val->rows,
         input->val->cols,
         flags);
+    if (!out)
+        return nullptr;
 
     out->op = op;
     out->inputs[0] = input;
@@ -88,12 +102,17 @@ static ModelVar *mv_binary(
     u32 rows, u32 cols,
     u32 flags, ModelVarOp op)
 {
+    if (!a || !b || !a->val || !b->val)
+        return nullptr;
+
     if ((a->flags | b->flags) & MV_FLAG_REQUIRES_GRAD)
     {
         flags |= MV_FLAG_REQUIRES_GRAD;
     }
 
     ModelVar *out = mv_create(arena, model, rows, cols, flags);
+    if (!out)
+        return nullptr;
 
     out->op = op;
     out->inputs[0] = a;
@@ -124,8 +143,9 @@ ModelVar *mv_add(
     MemArena *arena, ModelContext *model,
     ModelVar *a, ModelVar *b, u32 flags)
 {
-    if (a->val->rows != b->val->rows ||
-        a->val->cols != b->val->cols)
+    if (!a || !b || !a->val || !b->val
+        || a->val->rows != b->val->rows
+        || a->val->cols != b->val->cols)
     {
         return nullptr;
     }
@@ -140,8 +160,9 @@ ModelVar *mv_sub(
     MemArena *arena, ModelContext *model,
     ModelVar *a, ModelVar *b, u32 flags)
 {
-    if (a->val->rows != b->val->rows ||
-        a->val->cols != b->val->cols)
+    if (!a || !b || !a->val || !b->val
+        || a->val->rows != b->val->rows
+        || a->val->cols != b->val->cols)
     {
         return nullptr;
     }
@@ -156,7 +177,8 @@ ModelVar *mv_matmul(
     MemArena *arena, ModelContext *model,
     ModelVar *a, ModelVar *b, u32 flags)
 {
-    if (a->val->cols != b->val->rows)
+    if (!a || !b || !a->val || !b->val
+        || a->val->cols != b->val->rows)
     {
         return nullptr;
     }
@@ -171,8 +193,9 @@ ModelVar *mv_cross_entropy(
     MemArena *arena, ModelContext *model,
     ModelVar *p, ModelVar *q, u32 flags)
 {
-    if (p->val->rows != q->val->rows ||
-        p->val->cols != q->val->cols)
+    if (!p || !q || !p->val || !q->val
+        || p->val->rows != q->val->rows
+        || p->val->cols != q->val->cols)
     {
         return nullptr;
     }
@@ -183,6 +206,23 @@ ModelVar *mv_cross_entropy(
         flags, MV_OP_CROSS_ENTROPY);
 }
 
+ModelVar *mv_softmax_cross_entropy(
+    MemArena *arena, ModelContext *model,
+    ModelVar *targets, ModelVar *logits, u32 flags)
+{
+    if (!targets || !logits || !targets->val || !logits->val
+        || targets->val->rows != logits->val->rows
+        || targets->val->cols != logits->val->cols)
+    {
+        return nullptr;
+    }
+
+    return mv_binary(
+        arena, model, targets, logits,
+        1, 1,
+        flags, MV_OP_SOFTMAX_CROSS_ENTROPY);
+}
+
 //======================
 // Program creation (topological sort)
 //======================
@@ -190,18 +230,23 @@ ModelVar *mv_cross_entropy(
 ModelProgram model_prog_create(
     MemArena *arena, ModelContext *model, ModelVar *out_var)
 {
+    ModelProgram empty{};
+    if (!arena || !model || !out_var || model->num_vars == 0)
+        return empty;
+
     b32 *visited = push_array<b32>(arena, model->num_vars);
-    b32 *added = push_array<b32>(arena, model->num_vars); // Track what's in 'out'
+    b32 *added = push_array<b32>(arena, model->num_vars);
+    if (!visited || !added)
+        return empty;
 
     std::memset(visited, 0, sizeof(b32) * model->num_vars);
     std::memset(added, 0, sizeof(b32) * model->num_vars);
 
-    // Increase stack capacity to prevent overflow from DAG edges
-    u32 max_stack = model->num_vars * 4;
+    const u32 max_stack = model->num_vars * 4;
     ModelVar **stack = push_array<ModelVar *>(arena, max_stack);
-
-    // Out size will now safely never exceed num_vars
     ModelVar **out = push_array<ModelVar *>(arena, model->num_vars);
+    if (!stack || !out)
+        return empty;
 
     u32 stack_size = 0;
     u32 out_size = 0;
@@ -211,13 +256,11 @@ ModelProgram model_prog_create(
     while (stack_size > 0)
     {
         ModelVar *cur = stack[--stack_size];
-
-        if (cur->index >= model->num_vars)
+        if (!cur || cur->index >= model->num_vars)
             continue;
 
         if (visited[cur->index])
         {
-            // Crucial Fix: Only add to 'out' once
             if (!added[cur->index])
             {
                 out[out_size++] = cur;
@@ -227,21 +270,18 @@ ModelProgram model_prog_create(
         }
 
         visited[cur->index] = true;
-
+        if (stack_size >= max_stack)
+            return empty;
         stack[stack_size++] = cur;
 
-        u32 num_inputs = mv_num_inputs(cur->op);
-
+        const u32 num_inputs = mv_num_inputs(cur->op);
         for (u32 i = 0; i < num_inputs; i++)
         {
             ModelVar *input = cur->inputs[i];
-
-            if (input->index >= model->num_vars ||
-                visited[input->index])
-            {
+            if (!input || input->index >= model->num_vars || visited[input->index])
                 continue;
-            }
-
+            if (stack_size >= max_stack)
+                return empty;
             stack[stack_size++] = input;
         }
     }
@@ -249,20 +289,27 @@ ModelProgram model_prog_create(
     ModelProgram prog{};
     prog.size = out_size;
     prog.vars = push_array<ModelVar *>(arena, out_size);
+    if (!prog.vars)
+        return empty;
 
     std::memcpy(prog.vars, out, sizeof(ModelVar *) * out_size);
-
     return prog;
 }
+
 //======================
 // Forward
 //======================
 
 void model_prog_compute(ModelProgram *prog)
 {
+    if (!prog || !prog->vars)
+        return;
+
     for (u32 i = 0; i < prog->size; i++)
     {
         ModelVar *cur = prog->vars[i];
+        if (!cur)
+            continue;
 
         ModelVar *a = cur->inputs[0];
         ModelVar *b = cur->inputs[1];
@@ -290,11 +337,15 @@ void model_prog_compute(ModelProgram *prog)
             break;
 
         case MV_OP_MATMUL:
-            mat_mul(cur->val, a->val, b->val, 1, 0, 0);
+            mat_mul(cur->val, a->val, b->val, true, false, false);
             break;
 
         case MV_OP_CROSS_ENTROPY:
             mat_cross_entropy(cur->val, a->val, b->val);
+            break;
+
+        case MV_OP_SOFTMAX_CROSS_ENTROPY:
+            mat_softmax_cross_entropy(cur->val, a->val, b->val);
             break;
         }
     }
@@ -306,25 +357,28 @@ void model_prog_compute(ModelProgram *prog)
 
 void model_prog_compute_grads(ModelProgram *prog)
 {
+    if (!prog || !prog->vars || prog->size == 0)
+        return;
+
     for (u32 i = 0; i < prog->size; i++)
     {
         ModelVar *cur = prog->vars[i];
-
-        if (!(cur->flags & MV_FLAG_REQUIRES_GRAD))
+        if (!cur || !(cur->flags & MV_FLAG_REQUIRES_GRAD))
             continue;
         if (cur->flags & MV_FLAG_PARAMETER)
             continue;
-
         mat_clear(cur->grad);
     }
 
-    mat_fill(prog->vars[prog->size - 1]->grad, 1.0f);
+    ModelVar *root = prog->vars[prog->size - 1];
+    if (!root || !root->grad)
+        return;
+    mat_fill(root->grad, 1.0f);
 
-    for (i32 i = (i32)prog->size - 1; i >= 0; i--)
+    for (i32 i = static_cast<i32>(prog->size) - 1; i >= 0; i--)
     {
         ModelVar *cur = prog->vars[i];
-
-        if (!(cur->flags & MV_FLAG_REQUIRES_GRAD))
+        if (!cur || !(cur->flags & MV_FLAG_REQUIRES_GRAD))
             continue;
 
         ModelVar *a = cur->inputs[0];
@@ -333,11 +387,13 @@ void model_prog_compute_grads(ModelProgram *prog)
         switch (cur->op)
         {
         case MV_OP_RELU:
-            mat_relu_add_grad(a->grad, a->val, cur->grad);
+            if (a->flags & MV_FLAG_REQUIRES_GRAD)
+                mat_relu_add_grad(a->grad, a->val, cur->grad);
             break;
 
         case MV_OP_SOFTMAX:
-            mat_softmax_add_grad(a->grad, cur->val, cur->grad);
+            if (a->flags & MV_FLAG_REQUIRES_GRAD)
+                mat_softmax_add_grad(a->grad, cur->val, cur->grad);
             break;
 
         case MV_OP_ADD:
@@ -358,14 +414,21 @@ void model_prog_compute_grads(ModelProgram *prog)
 
         case MV_OP_MATMUL:
             if (a->flags & MV_FLAG_REQUIRES_GRAD)
-                mat_mul(a->grad, cur->grad, b->val, 0, 0, 1);
+                mat_mul(a->grad, cur->grad, b->val, false, false, true);
 
             if (b->flags & MV_FLAG_REQUIRES_GRAD)
-                mat_mul(b->grad, a->val, cur->grad, 0, 1, 0);
+                mat_mul(b->grad, a->val, cur->grad, false, true, false);
             break;
 
         case MV_OP_CROSS_ENTROPY:
             mat_cross_entropy_add_grad(
+                (a->flags & MV_FLAG_REQUIRES_GRAD) ? a->grad : nullptr,
+                (b->flags & MV_FLAG_REQUIRES_GRAD) ? b->grad : nullptr,
+                a->val, b->val, cur->grad);
+            break;
+
+        case MV_OP_SOFTMAX_CROSS_ENTROPY:
+            mat_softmax_cross_entropy_add_grad(
                 (a->flags & MV_FLAG_REQUIRES_GRAD) ? a->grad : nullptr,
                 (b->flags & MV_FLAG_REQUIRES_GRAD) ? b->grad : nullptr,
                 a->val, b->val, cur->grad);
@@ -383,6 +446,9 @@ void model_prog_compute_grads(ModelProgram *prog)
 
 void model_compile(MemArena *arena, ModelContext *model)
 {
+    if (!arena || !model)
+        return;
+
     if (model->output)
     {
         model->forward_prog = model_prog_create(arena, model, model->output);
@@ -396,5 +462,7 @@ void model_compile(MemArena *arena, ModelContext *model)
 
 void model_feedforward(ModelContext *model)
 {
+    if (!model)
+        return;
     model_prog_compute(&model->forward_prog);
 }
