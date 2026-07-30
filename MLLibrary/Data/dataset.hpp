@@ -86,28 +86,7 @@ struct DatasetSplitOptions final {
     bool shuffle = true;
 };
 
-class Dataset;
-
-struct DatasetSplit final {
-    Dataset* training_ptr = nullptr;
-    Dataset* validation_ptr = nullptr;
-    Dataset* test_ptr = nullptr;
-
-    DatasetSplit();
-    DatasetSplit(Dataset training, Dataset validation, Dataset test);
-    DatasetSplit(const DatasetSplit& other);
-    DatasetSplit(DatasetSplit&& other) noexcept;
-    DatasetSplit& operator=(const DatasetSplit& other);
-    DatasetSplit& operator=(DatasetSplit&& other) noexcept;
-    ~DatasetSplit();
-
-    [[nodiscard]] Dataset& training() noexcept;
-    [[nodiscard]] const Dataset& training() const noexcept;
-    [[nodiscard]] Dataset& validation() noexcept;
-    [[nodiscard]] const Dataset& validation() const noexcept;
-    [[nodiscard]] Dataset& test() noexcept;
-    [[nodiscard]] const Dataset& test() const noexcept;
-};
+struct DatasetSplit;
 
 class Dataset final {
 public:
@@ -150,6 +129,12 @@ private:
     DatasetSchema schema_;
     std::vector<DataRow> rows_;
     std::string source_;
+};
+
+struct DatasetSplit final {
+    Dataset training;
+    Dataset validation;
+    Dataset test;
 };
 
 [[nodiscard]] const char* column_type_name(ColumnType type) noexcept;
