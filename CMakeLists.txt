@@ -33,6 +33,7 @@ set(MLLIBRARY_CORE_SOURCES
     MLLibrary/Data/data.cpp
     MLLibrary/Data/dataset.cpp
     MLLibrary/Data/profiling.cpp
+    MLLibrary/Preprocessing/pipeline.cpp
     MLLibrary/Classical/classical.cpp
     MLLibrary/Contracts/runtime_contracts.cpp
 )
@@ -49,6 +50,7 @@ target_include_directories(MLLibraryCore
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Model>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Training>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Data>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Preprocessing>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Classical>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Contracts>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary>
@@ -57,6 +59,7 @@ target_include_directories(MLLibraryCore
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Model>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Training>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Data>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Preprocessing>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Classical>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Contracts>
 )
@@ -241,6 +244,10 @@ if(BUILD_TESTING)
     target_link_libraries(MLLibraryProfilingTests PRIVATE MLLibrary::Core)
     target_compile_features(MLLibraryProfilingTests PRIVATE cxx_std_23)
 
+    add_executable(MLLibraryPipelineTests Tests/pipeline_tests.cpp)
+    target_link_libraries(MLLibraryPipelineTests PRIVATE MLLibrary::Core)
+    target_compile_features(MLLibraryPipelineTests PRIVATE cxx_std_23)
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_compile_options(MLLibraryCoreTests PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
         target_compile_options(MLLibraryArenaTests PRIVATE -Wall -Wextra -Wpedantic)
@@ -248,6 +255,7 @@ if(BUILD_TESTING)
         target_compile_options(MLLibraryAutogradTests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(MLLibraryDatasetTests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(MLLibraryProfilingTests PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(MLLibraryPipelineTests PRIVATE -Wall -Wextra -Wpedantic)
     elseif(MSVC)
         target_compile_options(MLLibraryCoreTests PRIVATE /W4)
         target_compile_options(MLLibraryArenaTests PRIVATE /W4)
@@ -255,6 +263,7 @@ if(BUILD_TESTING)
         target_compile_options(MLLibraryAutogradTests PRIVATE /W4)
         target_compile_options(MLLibraryDatasetTests PRIVATE /W4)
         target_compile_options(MLLibraryProfilingTests PRIVATE /W4)
+        target_compile_options(MLLibraryPipelineTests PRIVATE /W4)
     endif()
 
     add_test(NAME MLLibraryCoreTests COMMAND MLLibraryCoreTests)
@@ -263,6 +272,7 @@ if(BUILD_TESTING)
     add_test(NAME MLLibraryAutogradTests COMMAND MLLibraryAutogradTests)
     add_test(NAME MLLibraryDatasetTests COMMAND MLLibraryDatasetTests)
     add_test(NAME MLLibraryProfilingTests COMMAND MLLibraryProfilingTests)
+    add_test(NAME MLLibraryPipelineTests COMMAND MLLibraryPipelineTests)
     add_test(
         NAME MLLibraryBenchmarkTest
         COMMAND MLLibraryBenchmark
