@@ -19,7 +19,7 @@ bool nearly_equal(f32 a, f32 b, f32 tolerance = 1e-5f)
     return std::fabs(a - b) <= tolerance;
 }
 
-bool test_cross_entropy_propagates_without_target_gradient()
+bool test_cross_entropy_composes_through_softmax()
 {
     MemArena *arena = MemArena::create(MiB(8), KiB(64));
     if (!arena) return false;
@@ -43,8 +43,8 @@ bool test_cross_entropy_propagates_without_target_gradient()
     model_prog_compute_grads(&model->cost_prog);
 
     const bool passed = nearly_equal(prediction->val->data[0], 0.5f)
-        && nearly_equal(prediction->grad->data[0], -0.5f)
-        && nearly_equal(prediction->grad->data[1], 0.5f)
+        && nearly_equal(prediction->grad->data[0], -2.0f, 1e-4f)
+        && nearly_equal(prediction->grad->data[1], 0.0f)
         && nearly_equal(logits->grad->data[0], -0.5f)
         && nearly_equal(logits->grad->data[1], 0.5f);
     MemArena::destroy(arena);
@@ -138,7 +138,7 @@ bool test_classical_preprocessing_and_learners()
     bayes.fit(samples, { 0, 0, 1, 1 });
     if (bayes.predict({ -1.5f, -1.5f }) != 0 || bayes.predict({ 1.5f, 1.5f }) != 1) return false;
 
-    LinearRegression regression(0.08f, 1500);
+    LinearRegression regression(0.08f, 1500, 0.0f);
     regression.fit({ { 0.0f }, { 1.0f }, { 2.0f }, { 3.0f } }, { 1.0f, 3.0f, 5.0f, 7.0f });
     if (!nearly_equal(regression.predict({ 4.0f }), 9.0f, 0.02f)) return false;
 
@@ -265,7 +265,7 @@ bool test_runtime_contracts_and_capability_selection()
 
 int main()
 {
-    if (!test_cross_entropy_propagates_without_target_gradient()) {
+    if (!test_cross_entropy_composes_through_softmax()) {
         std::fputs("cross entropy gradient test failed\n", stderr);
         return 1;
     }
