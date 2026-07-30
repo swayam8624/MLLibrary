@@ -21,26 +21,42 @@ Matrix *mat_load(
     u32 cols,
     const char *filename)
 {
+    if (!arena || !filename || rows == 0 || cols == 0)
+        return nullptr;
+
+    FILE *file = std::fopen(filename, "rb");
+    if (!file)
+        return nullptr;
+
+    if (std::fseek(file, 0, SEEK_END) != 0)
+    {
+        std::fclose(file);
+        return nullptr;
+    }
+    const long end = std::ftell(file);
+    if (end < 0 || std::fseek(file, 0, SEEK_SET) != 0)
+    {
+        std::fclose(file);
+        return nullptr;
+    }
+
+    const u64 expected_size = sizeof(f32) * static_cast<u64>(rows) * cols;
+    if (static_cast<u64>(end) != expected_size)
+    {
+        std::fclose(file);
+        return nullptr;
+    }
+
     Matrix *mat = mat_create(arena, rows, cols);
     if (!mat)
+    {
+        std::fclose(file);
         return nullptr;
+    }
 
-    FILE *f = std::fopen(filename, "rb");
-    if (!f)
-        return nullptr;
-
-    std::fseek(f, 0, SEEK_END);
-    u64 size = std::ftell(f);
-    std::fseek(f, 0, SEEK_SET);
-
-    u64 max_size = sizeof(f32) * (u64)rows * cols;
-    if (size > max_size)
-        size = max_size;
-
-    u64 read_size = std::fread(mat->data, 1, size, f);
-    std::fclose(f);
-
-    if (read_size != size)
+    const u64 read_size = std::fread(mat->data, 1, expected_size, file);
+    const bool close_succeeded = std::fclose(file) == 0;
+    if (read_size != expected_size || !close_succeeded)
         return nullptr;
 
     return mat;
@@ -52,7 +68,6 @@ Matrix *mat_load(
 
 void draw_mnist_digit(const f32 *data)
 {
-
     for (u32 y = 0; y < 28; y++)
     {
         for (u32 x = 0; x < 28; x++)
