@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(MLLibrary LANGUAGES CXX)
+project(MLLibrary VERSION 0.1.0 LANGUAGES CXX)
 
 include(CTest)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,8 +23,7 @@ if(MLLIB_USE_KAIRO_GPU AND NOT MLLIB_USE_KAIRO_MATH)
     message(FATAL_ERROR "MLLIB_USE_KAIRO_GPU requires MLLIB_USE_KAIRO_MATH.")
 endif()
 
-add_executable(MLLibrary
-    MLLibrary/main.cpp
+set(MLLIBRARY_CORE_SOURCES
     MLLibrary/Core/arena.cpp
     MLLibrary/Core/prng.cpp
     MLLibrary/Math/matrix.cpp
@@ -34,6 +35,35 @@ add_executable(MLLibrary
     MLLibrary/Contracts/runtime_contracts.cpp
 )
 
+add_library(MLLibraryCore STATIC ${MLLIBRARY_CORE_SOURCES})
+add_library(MLLibrary::Core ALIAS MLLibraryCore)
+set_target_properties(MLLibraryCore PROPERTIES EXPORT_NAME Core)
+
+target_include_directories(MLLibraryCore
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Core>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Math>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Model>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Training>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Data>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Classical>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Contracts>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Core>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Math>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Model>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Training>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Data>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Classical>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Contracts>
+)
+target_compile_features(MLLibraryCore PUBLIC cxx_std_23)
+
+add_executable(MLLibrary MLLibrary/main.cpp)
+target_link_libraries(MLLibrary PRIVATE MLLibrary::Core)
+target_compile_features(MLLibrary PRIVATE cxx_std_23)
+
 add_executable(MLLibraryTrainingReport
     MLLibrary/Visual/training_report.cpp
 )
@@ -44,38 +74,24 @@ add_executable(MLLibraryBenchmark
     MLLibrary/Benchmark/benchmark.cpp
     MLLibrary/Benchmark/matrix_benchmark.cpp
 )
+target_link_libraries(MLLibraryBenchmark PRIVATE MLLibrary::Core)
 target_compile_features(MLLibraryTrainingReport PRIVATE cxx_std_23)
 target_compile_features(MLLibraryDatasetReport PRIVATE cxx_std_23)
 target_compile_features(MLLibraryBenchmark PRIVATE cxx_std_23)
 target_include_directories(MLLibraryBenchmark PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Benchmark)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(MLLibraryCore PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
+    target_compile_options(MLLibrary PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
     target_compile_options(MLLibraryTrainingReport PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(MLLibraryDatasetReport PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(MLLibraryBenchmark PRIVATE -Wall -Wextra -Wpedantic)
 elseif(MSVC)
+    target_compile_options(MLLibraryCore PRIVATE /W4)
+    target_compile_options(MLLibrary PRIVATE /W4)
     target_compile_options(MLLibraryTrainingReport PRIVATE /W4)
     target_compile_options(MLLibraryDatasetReport PRIVATE /W4)
     target_compile_options(MLLibraryBenchmark PRIVATE /W4)
-endif()
-
-target_include_directories(MLLibrary
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Core
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Math
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Model
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Training
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Training
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Data
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Contracts
-)
-
-target_compile_features(MLLibrary PRIVATE cxx_std_23)
-
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-    target_compile_options(MLLibrary PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
-elseif(MSVC)
-    target_compile_options(MLLibrary PRIVATE /W4)
 endif()
 
 if(MLLIB_USE_KAIRO_MATH)
@@ -152,37 +168,70 @@ foreach(data_file
     endif()
 endforeach()
 
-install(TARGETS MLLibrary RUNTIME DESTINATION bin)
-install(TARGETS MLLibraryTrainingReport RUNTIME DESTINATION bin)
-install(TARGETS MLLibraryDatasetReport RUNTIME DESTINATION bin)
-install(TARGETS MLLibraryBenchmark RUNTIME DESTINATION bin)
+configure_package_config_file(
+    cmake/MLLibraryConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/MLLibraryConfig.cmake"
+    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/MLLibrary"
+)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/MLLibraryConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(TARGETS MLLibraryCore
+    EXPORT MLLibraryTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(DIRECTORY MLLibrary/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary
+    FILES_MATCHING
+        PATTERN "*.h"
+        PATTERN "*.hpp"
+)
+install(EXPORT MLLibraryTargets
+    FILE MLLibraryTargets.cmake
+    NAMESPACE MLLibrary::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MLLibrary
+)
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/MLLibraryConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/MLLibraryConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MLLibrary
+)
+install(TARGETS MLLibrary RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS MLLibraryTrainingReport RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS MLLibraryDatasetReport RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS MLLibraryBenchmark RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 if(BUILD_TESTING)
-    add_executable(MLLibraryCoreTests
-        Tests/core_tests.cpp
-        MLLibrary/Core/arena.cpp
-        MLLibrary/Core/prng.cpp
-        MLLibrary/Math/matrix.cpp
-        MLLibrary/Model/model.cpp
-        MLLibrary/Training/training.cpp
-        MLLibrary/Training/checkpoint.cpp
-        MLLibrary/Classical/classical.cpp
-        MLLibrary/Contracts/runtime_contracts.cpp
-    )
-    target_include_directories(MLLibraryCoreTests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Core
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Math
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Model
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Classical
-        ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Contracts
-    )
+    add_executable(MLLibraryCoreTests Tests/core_tests.cpp)
+    target_link_libraries(MLLibraryCoreTests PRIVATE MLLibrary::Core)
     target_compile_features(MLLibraryCoreTests PRIVATE cxx_std_23)
+
+    add_executable(MLLibraryArenaTests Tests/arena_tests.cpp)
+    target_link_libraries(MLLibraryArenaTests PRIVATE MLLibrary::Core)
+    target_compile_features(MLLibraryArenaTests PRIVATE cxx_std_23)
+
+    add_executable(MLLibraryTrainingTests Tests/training_tests.cpp)
+    target_link_libraries(MLLibraryTrainingTests PRIVATE MLLibrary::Core)
+    target_compile_features(MLLibraryTrainingTests PRIVATE cxx_std_23)
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_compile_options(MLLibraryCoreTests PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
+        target_compile_options(MLLibraryArenaTests PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(MLLibraryTrainingTests PRIVATE -Wall -Wextra -Wpedantic)
     elseif(MSVC)
         target_compile_options(MLLibraryCoreTests PRIVATE /W4)
+        target_compile_options(MLLibraryArenaTests PRIVATE /W4)
+        target_compile_options(MLLibraryTrainingTests PRIVATE /W4)
     endif()
+
     add_test(NAME MLLibraryCoreTests COMMAND MLLibraryCoreTests)
+    add_test(NAME MLLibraryArenaTests COMMAND MLLibraryArenaTests)
+    add_test(NAME MLLibraryTrainingTests COMMAND MLLibraryTrainingTests)
     add_test(
         NAME MLLibraryBenchmarkTest
         COMMAND MLLibraryBenchmark
