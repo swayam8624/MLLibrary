@@ -1,5 +1,9 @@
 #include "benchmark.hpp"
 
+#include "arena.h"
+#include "base.h"
+#include "matrix.hpp"
+
 #include <algorithm>
 #include <charconv>
 #include <chrono>
@@ -55,20 +59,9 @@ namespace
         return options.output && options.size > 0 && options.size <= 2048 && options.iterations > 0;
     }
 
-    void multiply(
-        const std::vector<float>& lhs,
-        const std::vector<float>& rhs,
-        std::vector<float>& output,
-        std::size_t size)
+    bool multiply(Matrix* output, const Matrix* lhs, const Matrix* rhs)
     {
-        std::fill(output.begin(), output.end(), 0.0f);
-        for (std::size_t row = 0; row < size; ++row)
-            for (std::size_t inner = 0; inner < size; ++inner)
-            {
-                const float factor = lhs[row * size + inner];
-                for (std::size_t column = 0; column < size; ++column)
-                    output[row * size + column] += factor * rhs[inner * size + column];
-            }
+        return mat_mul(output, lhs, rhs, true, false, false);
     }
 
     std::size_t peak_resident_bytes()
@@ -100,26 +93,60 @@ int main(int argumentCount, char** arguments)
                   << " --output report.json --size N --iterations N --seed N\n";
         return 2;
     }
+
     const std::size_t elements = options.size * options.size;
+    const u64 matrix_bytes = static_cast<u64>(elements) * sizeof(f32);
+    const u64 reserve_bytes = std::max<u64>(MiB(64), matrix_bytes * 4 + MiB(8));
+    MemArena* arena = MemArena::create(reserve_bytes, MiB(1));
+    if (!arena)
+    {
+        std::cerr << "Cannot allocate benchmark arena.\n";
+        return 1;
+    }
+
+    const u32 dimension = static_cast<u32>(options.size);
+    Matrix* lhs = mat_create(arena, dimension, dimension);
+    Matrix* rhs = mat_create(arena, dimension, dimension);
+    Matrix* output = mat_create(arena, dimension, dimension);
+    if (!lhs || !rhs || !output)
+    {
+        std::cerr << "Cannot allocate benchmark matrices.\n";
+        MemArena::destroy(arena);
+        return 1;
+    }
+
     std::mt19937_64 generator(options.seed);
     std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
-    std::vector<float> lhs(elements);
-    std::vector<float> rhs(elements);
-    std::vector<float> output(elements);
-    for (float& value : lhs) value = distribution(generator);
-    for (float& value : rhs) value = distribution(generator);
+    for (std::size_t index = 0; index < elements; ++index)
+    {
+        lhs->data[index] = distribution(generator);
+        rhs->data[index] = distribution(generator);
+    }
 
     constexpr std::size_t warmups = 2;
     for (std::size_t iteration = 0; iteration < warmups; ++iteration)
-        multiply(lhs, rhs, output, options.size);
+    {
+        if (!multiply(output, lhs, rhs))
+        {
+            std::cerr << "Production matrix multiplication rejected the benchmark shape.\n";
+            MemArena::destroy(arena);
+            return 1;
+        }
+    }
 
     std::vector<double> latencies;
     latencies.reserve(options.iterations);
     for (std::size_t iteration = 0; iteration < options.iterations; ++iteration)
     {
         const auto start = std::chrono::steady_clock::now();
-        multiply(lhs, rhs, output, options.size);
+        const bool multiplied = multiply(output, lhs, rhs);
         const auto stop = std::chrono::steady_clock::now();
+        if (!multiplied)
+        {
+            std::cerr << "Production matrix multiplication failed.\n";
+            MemArena::destroy(arena);
+            return 1;
+        }
         latencies.push_back(std::chrono::duration<double, std::milli>(stop - start).count());
     }
 
@@ -129,10 +156,10 @@ int main(int argumentCount, char** arguments)
         {
             double reference = 0.0;
             for (std::size_t inner = 0; inner < options.size; ++inner)
-                reference += static_cast<double>(lhs[row * options.size + inner])
-                    * static_cast<double>(rhs[inner * options.size + column]);
+                reference += static_cast<double>(lhs->data[row * options.size + inner])
+                    * static_cast<double>(rhs->data[inner * options.size + column]);
             maximumError = std::max(maximumError,
-                std::abs(reference - static_cast<double>(output[row * options.size + column])));
+                std::abs(reference - static_cast<double>(output->data[row * options.size + column])));
         }
 
     const double totalMilliseconds = std::accumulate(latencies.begin(), latencies.end(), 0.0);
@@ -157,7 +184,7 @@ int main(int argumentCount, char** arguments)
 
     const mllibrary::benchmark::ExperimentManifest manifest{
         .runID = "matrix-square-seed-" + std::to_string(options.seed),
-        .benchmarkName = "cpu.scalar.square_matmul",
+        .benchmarkName = "cpu.scalar.mat_mul",
         .seed = options.seed,
         .compiler = compiler,
         .platform = platform,
@@ -181,7 +208,10 @@ int main(int argumentCount, char** arguments)
     if (!mllibrary::benchmark::write_json_report(manifest, result, options.output, &error))
     {
         std::cerr << error << '\n';
+        MemArena::destroy(arena);
         return 1;
     }
+
+    MemArena::destroy(arena);
     return 0;
 }
