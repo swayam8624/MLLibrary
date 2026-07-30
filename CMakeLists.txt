@@ -37,6 +37,7 @@ set(MLLIBRARY_CORE_SOURCES
     MLLibrary/Experiment/experiment.cpp
     MLLibrary/Evaluation/metrics.cpp
     MLLibrary/Evaluation/cross_validation.cpp
+    MLLibrary/Search/search.cpp
     MLLibrary/Classical/classical.cpp
     MLLibrary/Contracts/runtime_contracts.cpp
 )
@@ -56,6 +57,7 @@ target_include_directories(MLLibraryCore
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Preprocessing>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Experiment>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Evaluation>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Search>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Classical>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Contracts>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary>
@@ -67,6 +69,7 @@ target_include_directories(MLLibraryCore
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Preprocessing>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Experiment>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Evaluation>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Search>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Classical>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MLLibrary/Contracts>
 )
@@ -160,7 +163,7 @@ if(MLLIB_USE_KAIRO_MATH)
             add_test(NAME MLLibraryTensorIntegrationTests COMMAND MLLibraryTensorIntegrationTests)
             add_executable(MLLibraryContractsModuleTests Tests/contracts_module.cpp)
             target_link_libraries(MLLibraryContractsModuleTests PRIVATE MLLibraryContractsModule)
-            target_compile_features(MLLibraryContractsModuleTests PRIVATE cxx_std_23)
+            target_compile_features(MLLibraryContractsModuleTests PUBLIC cxx_std_23)
             add_test(NAME MLLibraryContractsModuleTests COMMAND MLLibraryContractsModuleTests)
             if(MLLIB_USE_KAIRO_GPU)
                 add_executable(MLLibraryTensorGPUIntegrationTests Tests/tensor_gpu_integration.cpp)
@@ -263,6 +266,10 @@ if(BUILD_TESTING)
     target_link_libraries(MLLibraryEvaluationTests PRIVATE MLLibrary::Core)
     target_compile_features(MLLibraryEvaluationTests PRIVATE cxx_std_23)
 
+    add_executable(MLLibrarySearchTests Tests/search_tests.cpp)
+    target_link_libraries(MLLibrarySearchTests PRIVATE MLLibrary::Core)
+    target_compile_features(MLLibrarySearchTests PRIVATE cxx_std_23)
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_compile_options(MLLibraryCoreTests PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
         target_compile_options(MLLibraryArenaTests PRIVATE -Wall -Wextra -Wpedantic)
@@ -273,6 +280,7 @@ if(BUILD_TESTING)
         target_compile_options(MLLibraryPipelineTests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(MLLibraryExperimentTests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(MLLibraryEvaluationTests PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(MLLibrarySearchTests PRIVATE -Wall -Wextra -Wpedantic)
     elseif(MSVC)
         target_compile_options(MLLibraryCoreTests PRIVATE /W4)
         target_compile_options(MLLibraryArenaTests PRIVATE /W4)
@@ -283,6 +291,7 @@ if(BUILD_TESTING)
         target_compile_options(MLLibraryPipelineTests PRIVATE /W4)
         target_compile_options(MLLibraryExperimentTests PRIVATE /W4)
         target_compile_options(MLLibraryEvaluationTests PRIVATE /W4)
+        target_compile_options(MLLibrarySearchTests PRIVATE /W4)
     endif()
 
     add_test(NAME MLLibraryCoreTests COMMAND MLLibraryCoreTests)
@@ -294,6 +303,7 @@ if(BUILD_TESTING)
     add_test(NAME MLLibraryPipelineTests COMMAND MLLibraryPipelineTests)
     add_test(NAME MLLibraryExperimentTests COMMAND MLLibraryExperimentTests)
     add_test(NAME MLLibraryEvaluationTests COMMAND MLLibraryEvaluationTests)
+    add_test(NAME MLLibrarySearchTests COMMAND MLLibrarySearchTests)
     add_test(
         NAME MLLibraryBenchmarkTest
         COMMAND MLLibraryBenchmark
