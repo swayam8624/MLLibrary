@@ -219,19 +219,26 @@ if(BUILD_TESTING)
     target_link_libraries(MLLibraryTrainingTests PRIVATE MLLibrary::Core)
     target_compile_features(MLLibraryTrainingTests PRIVATE cxx_std_23)
 
+    add_executable(MLLibraryAutogradTests Tests/autograd_tests.cpp)
+    target_link_libraries(MLLibraryAutogradTests PRIVATE MLLibrary::Core)
+    target_compile_features(MLLibraryAutogradTests PRIVATE cxx_std_23)
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_compile_options(MLLibraryCoreTests PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
         target_compile_options(MLLibraryArenaTests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(MLLibraryTrainingTests PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(MLLibraryAutogradTests PRIVATE -Wall -Wextra -Wpedantic)
     elseif(MSVC)
         target_compile_options(MLLibraryCoreTests PRIVATE /W4)
         target_compile_options(MLLibraryArenaTests PRIVATE /W4)
         target_compile_options(MLLibraryTrainingTests PRIVATE /W4)
+        target_compile_options(MLLibraryAutogradTests PRIVATE /W4)
     endif()
 
     add_test(NAME MLLibraryCoreTests COMMAND MLLibraryCoreTests)
     add_test(NAME MLLibraryArenaTests COMMAND MLLibraryArenaTests)
     add_test(NAME MLLibraryTrainingTests COMMAND MLLibraryTrainingTests)
+    add_test(NAME MLLibraryAutogradTests COMMAND MLLibraryAutogradTests)
     add_test(
         NAME MLLibraryBenchmarkTest
         COMMAND MLLibraryBenchmark
