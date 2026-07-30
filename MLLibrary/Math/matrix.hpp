@@ -58,21 +58,50 @@ b32 mat_mul(
 );
 
 //======================
-// Activations
+// Activations and losses
 //======================
 
 b32 mat_relu(Matrix* out, const Matrix* in);
+
+// Legacy scalar-runtime semantics: every element of `in` belongs to one
+// categorical distribution, regardless of the matrix shape. Batched/axis-aware
+// softmax belongs to the Tensor runtime rather than this compact matrix layer.
 b32 mat_softmax(Matrix* out, const Matrix* in);
+
+// Elementwise -p * log(q + epsilon). The output has the same shape as p and q.
 b32 mat_cross_entropy(Matrix* out, const Matrix* p, const Matrix* q);
+
+// Numerically stable scalar cross entropy computed directly from logits.
+// `out` must be 1x1. All target/logit elements form one distribution.
+b32 mat_softmax_cross_entropy(
+    Matrix* out,
+    const Matrix* targets,
+    const Matrix* logits
+);
 
 //======================
 // Gradients
 //======================
 
 b32 mat_relu_add_grad(Matrix* out, const Matrix* in, const Matrix* grad);
+
+// Adds J_softmax^T * grad to `out` for the all-elements distribution used by
+// mat_softmax.
 b32 mat_softmax_add_grad(Matrix* out, const Matrix* softmax_out, const Matrix* grad);
 
+// Adds the true derivatives of elementwise cross entropy. Composing this with
+// mat_softmax_add_grad yields the usual softmax-cross-entropy derivative.
 b32 mat_cross_entropy_add_grad(
     Matrix* p_grad, Matrix* q_grad,
     const Matrix* p, const Matrix* q, const Matrix* grad
+);
+
+// Adds gradients for the numerically stable scalar fused loss. `grad` must be
+// 1x1. For normalized targets, logits_grad receives softmax(logits) - targets.
+b32 mat_softmax_cross_entropy_add_grad(
+    Matrix* target_grad,
+    Matrix* logits_grad,
+    const Matrix* targets,
+    const Matrix* logits,
+    const Matrix* grad
 );
