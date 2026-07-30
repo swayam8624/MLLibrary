@@ -49,6 +49,7 @@ enum ModelVarOp {
     MV_OP_SUB,
     MV_OP_MATMUL,
     MV_OP_CROSS_ENTROPY,
+    MV_OP_SOFTMAX_CROSS_ENTROPY,
 };
 
 constexpr u32 MODEL_VAR_MAX_INPUTS = 2;
@@ -112,6 +113,7 @@ ModelVar* mv_relu(
     ModelVar* input, u32 flags
 );
 
+// The compact scalar runtime treats all matrix elements as one distribution.
 ModelVar* mv_softmax(
     MemArena* arena, ModelContext* model,
     ModelVar* input, u32 flags
@@ -132,9 +134,18 @@ ModelVar* mv_matmul(
     ModelVar* a, ModelVar* b, u32 flags
 );
 
+// Elementwise cross entropy over probabilities. Its output keeps the input
+// shape and composes with mv_softmax through the general chain rule.
 ModelVar* mv_cross_entropy(
     MemArena* arena, ModelContext* model,
     ModelVar* p, ModelVar* q, u32 flags
+);
+
+// Numerically stable scalar loss computed directly from targets and logits.
+// The returned variable has shape 1x1.
+ModelVar* mv_softmax_cross_entropy(
+    MemArena* arena, ModelContext* model,
+    ModelVar* targets, ModelVar* logits, u32 flags
 );
 
 //======================
