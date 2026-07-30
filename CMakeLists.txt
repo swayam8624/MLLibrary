@@ -32,6 +32,7 @@ set(MLLIBRARY_CORE_SOURCES
     MLLibrary/Training/checkpoint.cpp
     MLLibrary/Data/data.cpp
     MLLibrary/Data/dataset.cpp
+    MLLibrary/Data/profiling.cpp
     MLLibrary/Classical/classical.cpp
     MLLibrary/Contracts/runtime_contracts.cpp
 )
@@ -71,6 +72,10 @@ add_executable(MLLibraryTrainingReport
 add_executable(MLLibraryDatasetReport
     MLLibrary/Visual/dataset_report.cpp
 )
+add_executable(MLLibraryDatasetInspector
+    MLLibrary/Visual/dataset_inspector.cpp
+)
+target_link_libraries(MLLibraryDatasetInspector PRIVATE MLLibrary::Core)
 add_executable(MLLibraryBenchmark
     MLLibrary/Benchmark/benchmark.cpp
     MLLibrary/Benchmark/matrix_benchmark.cpp
@@ -78,6 +83,7 @@ add_executable(MLLibraryBenchmark
 target_link_libraries(MLLibraryBenchmark PRIVATE MLLibrary::Core)
 target_compile_features(MLLibraryTrainingReport PRIVATE cxx_std_23)
 target_compile_features(MLLibraryDatasetReport PRIVATE cxx_std_23)
+target_compile_features(MLLibraryDatasetInspector PRIVATE cxx_std_23)
 target_compile_features(MLLibraryBenchmark PRIVATE cxx_std_23)
 target_include_directories(MLLibraryBenchmark PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/MLLibrary/Benchmark)
 
@@ -86,12 +92,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(MLLibrary PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
     target_compile_options(MLLibraryTrainingReport PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(MLLibraryDatasetReport PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(MLLibraryDatasetInspector PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(MLLibraryBenchmark PRIVATE -Wall -Wextra -Wpedantic)
 elseif(MSVC)
     target_compile_options(MLLibraryCore PRIVATE /W4)
     target_compile_options(MLLibrary PRIVATE /W4)
     target_compile_options(MLLibraryTrainingReport PRIVATE /W4)
     target_compile_options(MLLibraryDatasetReport PRIVATE /W4)
+    target_compile_options(MLLibraryDatasetInspector PRIVATE /W4)
     target_compile_options(MLLibraryBenchmark PRIVATE /W4)
 endif()
 
@@ -205,6 +213,7 @@ install(FILES
 install(TARGETS MLLibrary RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(TARGETS MLLibraryTrainingReport RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(TARGETS MLLibraryDatasetReport RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS MLLibraryDatasetInspector RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(TARGETS MLLibraryBenchmark RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if(BUILD_TESTING)
@@ -228,18 +237,24 @@ if(BUILD_TESTING)
     target_link_libraries(MLLibraryDatasetTests PRIVATE MLLibrary::Core)
     target_compile_features(MLLibraryDatasetTests PRIVATE cxx_std_23)
 
+    add_executable(MLLibraryProfilingTests Tests/profiling_tests.cpp)
+    target_link_libraries(MLLibraryProfilingTests PRIVATE MLLibrary::Core)
+    target_compile_features(MLLibraryProfilingTests PRIVATE cxx_std_23)
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_compile_options(MLLibraryCoreTests PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
         target_compile_options(MLLibraryArenaTests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(MLLibraryTrainingTests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(MLLibraryAutogradTests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(MLLibraryDatasetTests PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(MLLibraryProfilingTests PRIVATE -Wall -Wextra -Wpedantic)
     elseif(MSVC)
         target_compile_options(MLLibraryCoreTests PRIVATE /W4)
         target_compile_options(MLLibraryArenaTests PRIVATE /W4)
         target_compile_options(MLLibraryTrainingTests PRIVATE /W4)
         target_compile_options(MLLibraryAutogradTests PRIVATE /W4)
         target_compile_options(MLLibraryDatasetTests PRIVATE /W4)
+        target_compile_options(MLLibraryProfilingTests PRIVATE /W4)
     endif()
 
     add_test(NAME MLLibraryCoreTests COMMAND MLLibraryCoreTests)
@@ -247,6 +262,7 @@ if(BUILD_TESTING)
     add_test(NAME MLLibraryTrainingTests COMMAND MLLibraryTrainingTests)
     add_test(NAME MLLibraryAutogradTests COMMAND MLLibraryAutogradTests)
     add_test(NAME MLLibraryDatasetTests COMMAND MLLibraryDatasetTests)
+    add_test(NAME MLLibraryProfilingTests COMMAND MLLibraryProfilingTests)
     add_test(
         NAME MLLibraryBenchmarkTest
         COMMAND MLLibraryBenchmark
