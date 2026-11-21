@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Computation-graph API: nodes represent values/operations and enable reverse-mode differentiation.
+// Numerical operations delegate to Math/matrix.hpp and storage lifetimes depend on Core/arena.h. Read
+// model.cpp for graph ordering and gradient accumulation.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  model.hpp
 //  MLLibrary
