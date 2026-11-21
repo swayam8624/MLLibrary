@@ -1,3 +1,9 @@
+// TEACHING MAP — MLLibrary/Math/matrix.cpp
+// Row-major numerical Matrix primitives built over MemArena. Model/model.cpp creates
+// variables with Matrix values; training invokes forward/backprop kernels. Validate shape
+// and arena lifetime before operations.
+// See READING_ORDER.md for complete model/data/training API interactions.
+
 //
 //  matrix.cpp
 //  MLLibrary
@@ -31,6 +37,9 @@ u64 element_count(const Matrix* matrix)
 // Creation
 //======================
 
+// Allocate shape metadata and contiguous float storage in MemArena.
+// The output is not independently heap-owned: freeing/resetting the arena
+// invalidates matrix data and every ModelVar that points into it.
 Matrix *mat_create(MemArena *arena, u32 rows, u32 cols)
 {
     Matrix *mat = push_struct<Matrix>(arena);
@@ -46,6 +55,8 @@ Matrix *mat_create(MemArena *arena, u32 rows, u32 cols)
     return mat;
 }
 
+// Copy only equal shapes; unlike mathematical broadcasting this low-level
+// helper rejects incompatible dimensions. Model/training code relies on it.
 b32 mat_copy(Matrix *dst, const Matrix *src)
 {
     if (!dst || !src || !dst->data || !src->data)
