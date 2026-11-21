@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Matrix arithmetic and activation implementation for Math/matrix.hpp. Trace calls from
+// Model/model.cpp to understand where graph operations become numerical kernels; validate dimensions
+// and overwrite/transpose flags carefully.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  matrix.cpp
 //  MLLibrary
