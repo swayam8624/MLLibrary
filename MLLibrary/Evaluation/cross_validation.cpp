@@ -1,3 +1,9 @@
+// TEACHING MAP — MLLibrary/Evaluation/cross_validation.cpp
+// Leakage-safe cross-validation: makes deterministic held-out folds and fits a new
+// preprocessing pipeline within each training split before scoring. Search/AutoML consume
+// these estimates.
+// See READING_ORDER.md for complete model/data/training API interactions.
+
 #include "cross_validation.hpp"
 
 #include <algorithm>
@@ -25,6 +31,8 @@ using mllibrary::experiment::ExperimentRunner;
 using mllibrary::preprocessing::FittedPipeline;
 using mllibrary::preprocessing::PreparedDataset;
 
+// Rejection gate: each fold needs at least one validation record, and all
+// training/validation splits must be proper disjoint partitions.
 void validate_fold_request(std::size_t row_count, std::size_t fold_count)
 {
     if (fold_count < 2)
@@ -33,6 +41,8 @@ void validate_fold_request(std::size_t row_count, std::size_t fold_count)
         throw std::invalid_argument("Cross-validation requires at least one validation row per fold.");
 }
 
+// Rejection sampling avoids modulo bias while shuffling fold indices.
+// A fixed generator seed makes candidate comparisons reproducible.
 std::uint64_t bounded_random(std::mt19937_64& generator, std::uint64_t bound)
 {
     const std::uint64_t threshold = static_cast<std::uint64_t>(-bound) % bound;
