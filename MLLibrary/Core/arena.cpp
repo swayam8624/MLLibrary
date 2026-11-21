@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Operating-system virtual-memory implementation for MemArena's public API. Follow create/push/pop
+// and temporary scopes back to Core/arena.h. Matrix/model allocations are consumers, not owners, of
+// the arena memory.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  arena.cpp
 //  MLLibrary
