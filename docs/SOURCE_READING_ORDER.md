@@ -10,34 +10,34 @@ Read each phase in order. Every link goes to a source file or directory in this 
 
 ## 1. Architecture and building
 
-1. [`README.md`](README.md)
-2. [`CMakeLists.txt`](CMakeLists.txt)
-3. [`MLLibrary/Core`](MLLibrary/Core)
-4. [`MLLibrary/Contracts`](MLLibrary/Contracts)
-5. [`MLLibrary/Math`](MLLibrary/Math)
+1. [`README.md`](../README.md)
+2. [`CMakeLists.txt`](../CMakeLists.txt)
+3. [`MLLibrary/Core`](../MLLibrary/Core)
+4. [`MLLibrary/Contracts`](../MLLibrary/Contracts)
+5. [`MLLibrary/Math`](../MLLibrary/Math)
 
 ## 2. Differentiation and training
 
-1. [`MLLibrary/Model`](MLLibrary/Model)
-2. [`MLLibrary/Training`](MLLibrary/Training)
-3. [`MLLibrary/Data`](MLLibrary/Data)
-4. [`ModuleInterfaces`](ModuleInterfaces)
+1. [`MLLibrary/Model`](../MLLibrary/Model)
+2. [`MLLibrary/Training`](../MLLibrary/Training)
+3. [`MLLibrary/Data`](../MLLibrary/Data)
+4. [`ModuleInterfaces`](../ModuleInterfaces)
 
 ## 3. Evaluation and reproducibility
 
-1. [`MLLibrary/Benchmark`](MLLibrary/Benchmark)
-2. [`Tests/core_tests.cpp`](Tests/core_tests.cpp)
-3. [`Tests/autograd_tests.cpp`](Tests/autograd_tests.cpp)
-4. [`Tests/training_tests.cpp`](Tests/training_tests.cpp)
-5. [`Tests/dataset_tests.cpp`](Tests/dataset_tests.cpp)
-6. [`Tests/evaluation_tests.cpp`](Tests/evaluation_tests.cpp)
-7. [`Tests/automl_tests.cpp`](Tests/automl_tests.cpp)
+1. [`MLLibrary/Benchmark`](../MLLibrary/Benchmark)
+2. [`Tests/core_tests.cpp`](../Tests/core_tests.cpp)
+3. [`Tests/autograd_tests.cpp`](../Tests/autograd_tests.cpp)
+4. [`Tests/training_tests.cpp`](../Tests/training_tests.cpp)
+5. [`Tests/dataset_tests.cpp`](../Tests/dataset_tests.cpp)
+6. [`Tests/evaluation_tests.cpp`](../Tests/evaluation_tests.cpp)
+7. [`Tests/automl_tests.cpp`](../Tests/automl_tests.cpp)
 
 ## 4. Kairo runtime neighbors
 
-1. [`docs`](docs)
-2. [`Tests/tensor_integration.cpp`](Tests/tensor_integration.cpp)
-3. [`Tests/tensor_gpu_integration.cpp`](Tests/tensor_gpu_integration.cpp)
+1. [`docs`](../docs)
+2. [`Tests/tensor_integration.cpp`](../Tests/tensor_integration.cpp)
+3. [`Tests/tensor_gpu_integration.cpp`](../Tests/tensor_gpu_integration.cpp)
 
 ## End-to-end interaction map
 
