@@ -67,6 +67,9 @@ static thread_local MemArena *scratch_arenas[2] = {nullptr, nullptr};
 // MemArena implementation
 //======================
 
+// Reserve a virtual address range and initially commit a bounded page
+// subset. This arena owns a contiguous allocation lifetime; downstream
+// matrices borrow bytes and must not outlive the arena or a Temp rewind.
 MemArena *MemArena::create(u64 reserve_size, u64 commit_size)
 {
     if (reserve_size == 0 || commit_size == 0)
@@ -118,6 +121,9 @@ void *MemArena::push(u64 size, bool zero)
     return push_aligned(size, alignof(std::max_align_t), zero);
 }
 
+// Bump pointer allocation: reject invalid power-of-two alignment and
+// overflow; commit pages lazily as the cursor grows. The returned pointer
+// is stable until pop/pop_to/clear/destroy, not individually freeable.
 void *MemArena::push_aligned(u64 size, u64 alignment, bool zero)
 {
     if (!is_power_of_two(alignment))
@@ -164,6 +170,9 @@ void MemArena::pop(u64 size)
     pos_ -= min_u64(size, used);
 }
 
+// Restore an earlier bump marker without releasing the VM reservation.
+// Every matrix/tensor pointing into bytes after this marker becomes
+// invalid even if its struct survives elsewhere.
 void MemArena::pop_to(u64 pos)
 {
     const u64 minimum = sizeof(MemArena);
@@ -182,6 +191,8 @@ void MemArena::clear()
 // Temp
 //======================
 
+// RAII transaction marker for scratch allocations. Scope exit rewinds
+// the arena, making lifetime explicit but prohibiting escaped pointers.
 MemArena::Temp MemArena::begin_temp()
 {
     return Temp(this);
@@ -191,6 +202,9 @@ MemArena::Temp MemArena::begin_temp()
 // Scratch
 //======================
 
+// Choose a thread-local scratch arena excluding the declared conflicts.
+// This avoids aliasing a caller's scratch allocation when a nested matrix
+// operation needs temporary storage. Inspect its nullptr fallback path.
 MemArena::Temp MemArena::scratch_get(MemArena **conflicts, u32 num_conflicts)
 {
     i32 index = -1;
