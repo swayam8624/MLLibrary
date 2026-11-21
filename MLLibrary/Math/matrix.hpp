@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Matrix kernel declarations and shape conventions. Functions consume buffers typically allocated
+// through MemArena; Model/model.cpp uses these kernels for forward and backward graph operators, and
+// Training/training.cpp invokes graph execution.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  matrix.hpp
 //  MLLibrary
