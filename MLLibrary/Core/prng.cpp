@@ -1,3 +1,9 @@
+// TEACHING MAP — MLLibrary/Core/prng.cpp
+// PCG-style deterministic random source used for weight initialization, shuffles and
+// synthetic datasets. The global wrappers share mutable state; do not treat them as
+// thread-local or cryptographically secure.
+// See READING_ORDER.md for complete model/data/training API interactions.
+
 //
 //  prng.cpp
 //  MLLibrary
@@ -24,6 +30,8 @@ static PRNG s_prng_state{
 // PRNG implementation
 //======================
 
+// Reinitialize the PCG stream with a state and sequence; the odd increment
+// selects a stream. Repeat these seeds for reproducible ML experiments.
 void PRNG::seed(u64 initstate, u64 initseq) {
     state_ = 0u;
     inc_   = (initseq << 1u) | 1u;
@@ -33,6 +41,8 @@ void PRNG::seed(u64 initstate, u64 initseq) {
     rand();
 }
 
+// Advance the 64-bit LCG state and permute bits into a 32-bit value.
+// Matrix random initialization and shuffle utilities consume this output.
 u32 PRNG::rand() {
     u64 oldstate = state_;
 
