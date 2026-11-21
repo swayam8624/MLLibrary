@@ -1,3 +1,9 @@
+// TEACHING MAP — MLLibrary/Training/training.cpp
+// Training loop bridges dataset matrices, compiled ModelVar cost graph and optimizer
+// updates. Request validation rejects missing model roles/shapes before an epoch changes
+// weights.
+// See READING_ORDER.md for complete model/data/training API interactions.
+
 //
 //  training.cpp
 //  MLLibrary
@@ -22,6 +28,9 @@ bool matrix_ready(const Matrix* matrix)
     return matrix && matrix->data && matrix->rows > 0 && matrix->cols > 0;
 }
 
+// Check model graph roles, compiled cost program, and train/test matrix
+// dimensions *before* any optimization step. The Data module owns datasets;
+// Model owns the differentiable graph, and Training orchestrates both.
 std::string validate_training_request(
     const ModelContext* model,
     const ModelTrainingDesc* desc)

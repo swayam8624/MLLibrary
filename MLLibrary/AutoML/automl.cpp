@@ -1,3 +1,9 @@
+// TEACHING MAP — MLLibrary/AutoML/automl.cpp
+// Profiles tabular data, infers task type and chooses candidate models/search plans. Builds
+// on preprocessing, CrossValidation and HyperparameterSearch; never use validation labels
+// as model-selection features.
+// See READING_ORDER.md for complete model/data/training API interactions.
+
 #include "automl.hpp"
 
 #include <algorithm>
@@ -68,6 +74,8 @@ const ColumnProfile& target_profile(
     return profile.columns[*target];
 }
 
+// Decide classification/regression from target metadata and configured
+// policy, not by leaking validation-fold outcomes into preprocessing.
 TaskKind infer_task(
     const Dataset& dataset,
     const DatasetProfile& profile,

@@ -1,3 +1,9 @@
+// TEACHING MAP — MLLibrary/Model/model.cpp
+// Static autograd graph: ModelVar wraps value/gradient Matrix arrays and operation
+// dependencies. Training executes the compiled cost program and backpropagates gradients;
+// allocations share the arena.
+// See READING_ORDER.md for complete model/data/training API interactions.
+
 //
 //  model.cpp
 //  MLLibrary
@@ -14,6 +20,8 @@
 // Creation
 //======================
 
+// Create graph context in the supplied arena; the caller must retain arena
+// and variable storage through forward, backward and optimizer execution.
 ModelContext *model_create(MemArena *arena)
 {
     return push_struct<ModelContext>(arena);
@@ -23,6 +31,9 @@ ModelContext *model_create(MemArena *arena)
 // Variable creation
 //======================
 
+// Register a graph variable and allocate its value/optional gradient Matrix.
+// Flags identify graph inputs, desired outputs and cost; Training reads these
+// roles when validating a training request and compiling execution.
 ModelVar *mv_create(
     MemArena *arena, ModelContext *model,
     u32 rows, u32 cols, u32 flags)
