@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Dataset-derived transformations, fitted preprocessing state, and leakage-safe train/test
+// preparation. Depends on Data/dataset; Experiment and Search should fit transformers on training
+// folds only.
+// Guided links: docs/SOURCE_READING_ORDER.md.
+
 #include "pipeline.hpp"
 
 #include <algorithm>
