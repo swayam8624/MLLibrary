@@ -1,5 +1,7 @@
 # MLLibrary: linked source reading order
 
+> **Detailed end-to-end learning:** [Memory ownership, stable matrix math, one training batch and leakage-safe evaluation](ARENAS_MATRICES_TRAINING_AND_EVALUATION.md) traces real function calls, numerical assumptions, optimizer updates and scientific proof obligations.
+
 This is the recommended **conceptual reading order**, not a requirement to compile in this sequence. Most of the current executable/library implementation uses classic C++ headers and sources. The files under `ModuleInterfaces/` express a module-oriented public API; consult [README](../README.md) and [CMakeLists](../CMakeLists.txt) for the active build targets before assuming that every module is linked into the demo.
 
 ## Foundations: own your data before training models
