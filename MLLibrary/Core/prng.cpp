@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// PRNG implementation behind Core/prng.h. Distinguish deterministic bit generation from distributions
+// and random matrix initialization; check Math/matrix.cpp for consumers.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  prng.cpp
 //  MLLibrary
