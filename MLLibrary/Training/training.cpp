@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Optimization driver. It obtains examples, executes Model/model.cpp forward/backward logic and uses
+// matrices/gradients to apply updates; compare main.cpp for actual network setup.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  training.cpp
 //  MLLibrary
