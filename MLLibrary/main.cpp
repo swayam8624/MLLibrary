@@ -1,3 +1,10 @@
+// SOURCE STUDY NOTE:
+// Executable composition point: constructs the MNIST network using Model/model.hpp nodes, matrix
+// operations from Math/matrix.hpp, and arena-backed storage from Core/arena.h; Training/training.hpp
+// performs parameter optimization. Compare this classic-header application with the intended modules
+// in ModuleInterfaces/.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 #include <cstdio>
 #include <cstring>
 #include <cmath>
