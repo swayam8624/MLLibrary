@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Dependency-light baseline estimators and tabular processing. Compare estimator fit/predict APIs with
+// Experiment's wrapper and Preprocessing's column transformations.
+// Guided links: docs/SOURCE_READING_ORDER.md.
+
 #pragma once
 
 #include <cstddef>
