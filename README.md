@@ -1,5 +1,7 @@
 # MLLibrary
 
+> **Detailed end-to-end learning:** [Memory ownership, stable matrix math, one training batch and leakage-safe evaluation](docs/ARENAS_MATRICES_TRAINING_AND_EVALUATION.md) traces real function calls, numerical assumptions, optimizer updates and scientific proof obligations.
+
 > **Learning from the source:** Follow the [linked source reading order](docs/SOURCE_READING_ORDER.md) for an end-to-end path through memory allocation, PRNG, matrices, autograd, training, classical ML, experiments, and module integration. The guide distinguishes current build targets from optional interfaces.
 
 
