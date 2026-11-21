@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Optional C++ module layer for tensor-oriented models using Kairo Foundation Math Tensor. This
+// differs from the classic Matrix/Model implementation; available builds depend on CMake options.
+// See docs/SOURCE_READING_ORDER.md.
+
 module;
 
 #include <cstddef>
