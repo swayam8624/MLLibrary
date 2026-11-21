@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Optional GPU tensor execution integration. Trace dependencies to Kairo math/backend interfaces and
+// the CMake feature flags; do not assume a GPU is required for the baseline CPU library.
+// See docs/SOURCE_READING_ORDER.md.
+
 module;
 
 #include <cstddef>
