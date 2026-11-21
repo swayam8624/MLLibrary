@@ -1,4 +1,9 @@
 // SOURCE STUDY NOTE:
+// Implements shared device, data type, layout and ownership contracts used at runtime boundaries;
+// cross-check runtime_contracts.hpp and TensorRuntime.cppm before adding a backend.
+// See docs/SOURCE_READING_ORDER.md.
+
+// SOURCE STUDY NOTE:
 // Shared data type, tensor layout, device and ownership contracts. These types explain what a
 // runtime/backend is permitted to consume, even when the baseline model uses simpler Matrix storage.
 // Guided links: docs/SOURCE_READING_ORDER.md.
