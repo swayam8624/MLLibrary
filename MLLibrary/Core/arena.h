@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Memory-management contract. MemArena controls reserve/commit and bump allocations, while
+// MemArena::Temp rolls back temporary allocations by scope. Math/matrix.cpp and Model/model.cpp
+// depend on these lifetimes; retaining pointers after an arena reset is unsafe.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 #pragma once
 
 #include <cstddef>
