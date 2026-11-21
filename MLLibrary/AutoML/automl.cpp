@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Runs and records high-level experiment/search workflows built on Dataset, Search and Evaluation;
+// inspect for reproducible seeds and leakage-safe data splits.
+// See docs/SOURCE_READING_ORDER.md.
+
 #include "automl.hpp"
 
 #include <algorithm>
