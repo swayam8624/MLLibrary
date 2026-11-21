@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Shared data type, tensor layout, device and ownership contracts. These types explain what a
+// runtime/backend is permitted to consume, even when the baseline model uses simpler Matrix storage.
+// Guided links: docs/SOURCE_READING_ORDER.md.
+
 #pragma once
 
 #include <cstddef>

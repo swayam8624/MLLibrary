@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Training-loop API: connects Data loading, Model graph evaluation, gradients and optimizers. Read
+// training.cpp to inspect batch boundaries, optimizer state and parameter ownership.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  training.hpp
 //  MLLibrary

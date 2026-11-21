@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// PRNG implementation behind Core/prng.h. Distinguish deterministic bit generation from distributions
+// and random matrix initialization; check Math/matrix.cpp for consumers.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  prng.cpp
 //  MLLibrary
@@ -24,6 +29,9 @@ static PRNG s_prng_state{
 // PRNG implementation
 //======================
 
+// Initialize deterministic generator *state* and independent sequence.
+// Record both values with experiments; a seed alone is not a guarantee of
+// cross-architecture statistical reproducibility.
 void PRNG::seed(u64 initstate, u64 initseq) {
     state_ = 0u;
     inc_   = (initseq << 1u) | 1u;
@@ -33,6 +41,9 @@ void PRNG::seed(u64 initstate, u64 initseq) {
     rand();
 }
 
+// Produce the next deterministic integer sample. Consumer code in
+// Math/matrix.cpp and Training/training.cpp derives distributions, shuffles
+// and parameter initialization; generator determinism is not cryptography.
 u32 PRNG::rand() {
     u64 oldstate = state_;
 
@@ -44,6 +55,9 @@ u32 PRNG::rand() {
     return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
 }
 
+// Convert generator bits to a floating-point uniform-like sample for
+// matrix initialization. Check the exact interval and precision before
+// deriving inclusive bounds or selecting categorical indices.
 f32 PRNG::randf() {
     // better than UINT32_MAX division (avoids bias)
     return (rand() >> 8) * (1.0f / 16777216.0f);

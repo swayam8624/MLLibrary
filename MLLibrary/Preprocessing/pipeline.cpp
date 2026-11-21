@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Dataset-derived transformations, fitted preprocessing state, and leakage-safe train/test
+// preparation. Depends on Data/dataset; Experiment and Search should fit transformers on training
+// folds only.
+// Guided links: docs/SOURCE_READING_ORDER.md.
+
 #include "pipeline.hpp"
 
 #include <algorithm>
@@ -83,6 +89,10 @@ std::string FittedPipeline::compute_schema_signature(const Dataset& dataset)
     return hex64(hash);
 }
 
+// Compute all imputation statistics, scaling ranges and categorical
+// vocabularies using *training data only*. Its schema and fingerprint are
+// saved to prevent reusing incompatible transforms. Calling fit on the
+// test fold would leak held-out distribution information into evaluation.
 void FittedPipeline::fit(const Dataset& training)
 {
     if (training.empty())
@@ -240,6 +250,10 @@ void FittedPipeline::require_compatible(const Dataset& dataset) const
         throw PreprocessingError("Dataset schema does not match the fitted preprocessing pipeline.");
 }
 
+// Apply frozen fitted parameters to another compatible Dataset, keeping
+// output column order and target values aligned. Unknown categories obey
+// an explicit policy: never learn their vocabulary from the evaluation
+// split while transform() runs.
 PreparedDataset FittedPipeline::transform(const Dataset& dataset) const
 {
     require_compatible(dataset);
@@ -315,6 +329,9 @@ PreparedDataset FittedPipeline::fit_transform(const Dataset& training)
     return transform(training);
 }
 
+// Serialize fitted preprocessing state, schema signature and fingerprint.
+// The on-disk metadata is part of experiment reproducibility; loading a
+// model without its paired pipeline can silently change input features.
 void FittedPipeline::save(const std::string& path) const
 {
     if (!fitted_) throw PreprocessingError("Cannot save an unfitted preprocessing pipeline.");
@@ -348,6 +365,9 @@ void FittedPipeline::save(const std::string& path) const
     if (!output) throw PreprocessingError("Failed while writing preprocessing pipeline file '" + path + "'.");
 }
 
+// Parse a versioned preprocessing state file, rejecting truncated data or
+// unsupported option enums. Always check the loaded schema signature on
+// future transform(); the file itself is not a trained estimator.
 FittedPipeline FittedPipeline::load(const std::string& path)
 {
     std::ifstream input(path, std::ios::binary);

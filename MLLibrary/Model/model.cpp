@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Graph construction and execution. Forward nodes invoke Math/matrix.cpp kernels; backward passes
+// propagate derivatives through saved graph structure. Training/training.cpp drives these functions
+// and updates parameter nodes.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  model.cpp
 //  MLLibrary

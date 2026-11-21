@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Input/data API for the baseline demonstration. Follow data.cpp for format handling and conversion
+// to matrix buffers, then main.cpp and Training/training.cpp for consumers.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  data.hpp
 //  MLLibrary

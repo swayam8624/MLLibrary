@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Automated orchestration over Data, Profiling, Search and Experiment. Use it after learning the
+// individual layers; evaluation must isolate test folds from fitted transforms.
+// See docs/SOURCE_READING_ORDER.md.
+
 #pragma once
 
 #include "dataset.hpp"

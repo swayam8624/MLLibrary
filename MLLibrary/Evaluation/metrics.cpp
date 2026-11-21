@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Metric calculation and confusion matrices. Experiment and Search use these outputs to compare
+// trained estimators; verify class indexing, averaging and sample counts rather than conflating
+// metrics.
+// Guided links: docs/SOURCE_READING_ORDER.md.
+
 #include "metrics.hpp"
 
 #include <algorithm>

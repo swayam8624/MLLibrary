@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Optimization driver. It obtains examples, executes Model/model.cpp forward/backward logic and uses
+// matrices/gradients to apply updates; compare main.cpp for actual network setup.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  training.cpp
 //  MLLibrary
@@ -109,6 +114,11 @@ u32 bounded_random(PRNG& random, u32 bound)
 
 } // namespace
 
+// Training control boundary: validate input/output shape and optimizer
+// parameters, shuffle examples with a seeded PRNG, process minibatches,
+// invoke forward/backward graph, check finite loss/gradients, then stage
+// parameter/optimizer updates. Error returns protect against partial bad
+// batches; examine evaluation and metrics CSV separately from training.
 ModelTrainingResult model_train(
     ModelContext* model,
     const ModelTrainingDesc* desc)

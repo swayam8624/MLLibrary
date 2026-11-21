@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Random-number-generation API used by initialization and sampling. Read prng.cpp for state
+// transitions; reproducibility requires controlling both seed and call order throughout
+// model/data/training code.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  prng.h
 //  MLLibrary

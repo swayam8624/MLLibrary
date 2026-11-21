@@ -1,5 +1,10 @@
 # MLLibrary
 
+> **Detailed end-to-end learning:** [Memory ownership, stable matrix math, one training batch and leakage-safe evaluation](docs/ARENAS_MATRICES_TRAINING_AND_EVALUATION.md) traces real function calls, numerical assumptions, optimizer updates and scientific proof obligations.
+
+> **Learning from the source:** Follow the [linked source reading order](docs/SOURCE_READING_ORDER.md) for an end-to-end path through memory allocation, PRNG, matrices, autograd, training, classical ML, experiments, and module integration. The guide distinguishes current build targets from optional interfaces.
+
+
 MLLibrary is a from-first-principles C++ machine-learning library. The current
 repo is the seed implementation: a small neural-network runtime that trains a
 fully connected MNIST classifier while the larger Kairo ML infrastructure is
@@ -451,3 +456,7 @@ The final Kairo ML library should be able to:
   directory.
 - Training writes optional CSV metrics through `metrics_csv_path`; `main.cpp`
   currently emits `training_metrics.csv` for dashboard/plotting work.
+
+## Reuse, contribution, and datasets
+
+The author-controlled original source code is intended to be reusable and extensible under the [MIT License](LICENSE). See [license scope and third-party notice](THIRD_PARTY_NOTICES.md) for limits: data files, generated executables, external Kairo projects and any third-party assets do not automatically receive the same license. Please include tests when changing matrix, gradient, allocator or evaluation behaviour, and preserve upstream notices when importing dependencies.

@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Data loading and conversion implementation. Connect its output shape and ownership to
+// Math/matrix.hpp and the input variables in Model/model.cpp; malformed input handling is as
+// important as correct examples.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  data.cpp
 //  MLLibrary

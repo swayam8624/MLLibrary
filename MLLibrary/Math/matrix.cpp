@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Matrix arithmetic and activation implementation for Math/matrix.hpp. Trace calls from
+// Model/model.cpp to understand where graph operations become numerical kernels; validate dimensions
+// and overwrite/transpose flags carefully.
+// Cross-file reading guide: docs/SOURCE_READING_ORDER.md.
+
 //
 //  matrix.cpp
 //  MLLibrary
@@ -31,6 +37,9 @@ u64 element_count(const Matrix* matrix)
 // Creation
 //======================
 
+// Create a Matrix descriptor and contiguous row-major float payload in
+// the *caller's arena*. Ownership is hierarchical: there is no per-matrix
+// delete; all consumers must respect arena lifetime and shape contracts.
 Matrix *mat_create(MemArena *arena, u32 rows, u32 cols)
 {
     Matrix *mat = push_struct<Matrix>(arena);
@@ -181,6 +190,10 @@ b32 mat_sub(Matrix *out, const Matrix *a, const Matrix *b)
 // Matmul kernels
 //======================
 
+// Multiply matrices with optional transposition of either input and
+// optional accumulation into the existing output. Validate effective
+// dimensions and output shape before reading memory; behavior differs
+// importantly when zero_out=false (add product to prior output).
 b32 mat_mul(
     Matrix *out, const Matrix *a, const Matrix *b,
     b32 zero_out, b32 transpose_a, b32 transpose_b)
@@ -243,6 +256,9 @@ b32 mat_relu(Matrix *out, const Matrix *in)
     return true;
 }
 
+// Numerically stabilize normalization by subtracting the largest input
+// before exponentiation. This API treats its Matrix as a flat distribution;
+// row-wise batched softmax requires distinct semantics.
 b32 mat_softmax(Matrix *out, const Matrix *in)
 {
     if (!out || !in || !out->data || !in->data)
@@ -295,6 +311,9 @@ b32 mat_cross_entropy(Matrix *out, const Matrix *p, const Matrix *q)
     return true;
 }
 
+// Combine softmax normalization and cross-entropy loss for logits and
+// target distribution. Avoid separately materializing tiny probabilities
+// before log; compare backward companion for a stable gradient.
 b32 mat_softmax_cross_entropy(
     Matrix* out,
     const Matrix* targets,
