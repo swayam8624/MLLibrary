@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// Estimator configuration and experiment orchestration. Consumes prepared datasets from Preprocessing,
+// calls Classical algorithms and Evaluation metrics, and provides records for Search.
+// Guided links: docs/SOURCE_READING_ORDER.md.
+
 #include "experiment.hpp"
 
 #include "classical.hpp"
