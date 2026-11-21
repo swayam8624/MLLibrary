@@ -1,3 +1,9 @@
+// TEACHING MAP — MLLibrary/Core/arena.cpp
+// Arena allocator implementation. Matrix and autograd nodes allocate from its
+// bump/virtual-memory reserve; the caller must manage arena lifetime before accessing
+// dependent tensors.
+// See READING_ORDER.md for complete model/data/training API interactions.
+
 //
 //  arena.cpp
 //  MLLibrary
@@ -61,6 +67,9 @@ static thread_local MemArena *scratch_arenas[2] = {nullptr, nullptr};
 // MemArena implementation
 //======================
 
+// Reserve virtual address space and commit an initial page-aligned region.
+// Other MLLibrary modules call push_struct/push_array against this arena;
+// neither a Matrix nor a ModelVar outlives its owning arena.
 MemArena *MemArena::create(u64 reserve_size, u64 commit_size)
 {
     if (reserve_size == 0 || commit_size == 0)
