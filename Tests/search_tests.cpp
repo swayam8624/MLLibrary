@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: Tests discrete candidate search, seeded determinism, failure tracking, halving and metric direction.
+// These are source-visible assertions, not proof this test was executed on
+// the current commit. See docs/DATA_TO_AUTOML_LAB.md for corresponding theory.
+
 #include "search.hpp"
 
 #include <cmath>
@@ -43,6 +47,7 @@ CrossValidationConfig base_classification_evaluation()
     return evaluation;
 }
 
+// TEACHING TEST: Verifies candidate enumeration and inspectable report generation.
 bool test_grid_search_and_artifact()
 {
     SearchConfig config;
@@ -85,6 +90,7 @@ bool same_parameters(
     return true;
 }
 
+// TEACHING TEST: Checks reproducible trial order for fixed seed/search configuration.
 bool test_random_search_is_deterministic()
 {
     SearchConfig config;
@@ -114,6 +120,7 @@ bool test_random_search_is_deterministic()
     return true;
 }
 
+// TEACHING TEST: Keeps failed candidate evidence while allowing other trials to be considered.
 bool test_failed_trials_do_not_abort_study()
 {
     SearchConfig config;
@@ -136,6 +143,7 @@ bool test_failed_trials_do_not_abort_study()
     return result.success && completed == 1 && failed == 1;
 }
 
+// TEACHING TEST: Checks survivor promotion and progressively larger fold budgets.
 bool test_successive_halving_promotes_candidates()
 {
     SearchConfig config;
@@ -168,6 +176,7 @@ bool test_successive_halving_promotes_candidates()
         && result.best_trial()->fold_budget == 4;
 }
 
+// TEACHING TEST: Tests invalid search settings and the maximize/minimize scoring decision.
 bool test_validation_and_metric_direction()
 {
     if (metric_is_maximized(PrimaryMetric::RootMeanSquaredError)) return false;
