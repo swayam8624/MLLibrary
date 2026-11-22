@@ -1,3 +1,18 @@
+// TEACHING ENTRYPOINT — follow docs/MNIST_TRAINING_FROM_FIRST_PRINCIPLES.md.
+// This classic C++23 executable (not the optional KairoMath module route)
+// allocates an arena, loads 784-feature MNIST matrices, creates a 16/16 hidden
+// residual classification graph, compiles its dependency programs, and runs
+// pre/post-training inference around model_train().
+//
+// Cross-file map: arena.h/cpp owns matrix/node storage; prng.h/cpp supplies
+// parameter initialization randomness; matrix.hpp/cpp implements the Float32
+// arithmetic; model.hpp/cpp builds and evaluates the autodiff graph;
+// training.hpp/cpp validates data, batches, optimizers and metrics; data.hpp
+// handles raw matrices and one-hot labels. Models and borrowed data pointers
+// must not outlive the arena. main currently ignores model_train's returned
+// ModelTrainingResult, so successful training is not established by reaching
+// the post-training printf. No KairoSIMD/Scheduler/GPU dispatch is implied.
+
 #include <cstdio>
 #include <cstring>
 #include <cmath>
