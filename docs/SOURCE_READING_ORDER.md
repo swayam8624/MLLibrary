@@ -2,6 +2,8 @@
 
 MLLibrary currently has **two distinct implementation routes**, and it is important not to conflate them. The running MNIST application uses traditional C++ source/header files and its own arena-backed matrix/autograd implementation. Optional integration with KairoMath compiles C++23 modules when `MLLIB_USE_KAIRO_MATH=ON`. The presence of declarations in `ModuleInterfaces/` does not mean those files replace the normal native application implementation in every configuration.
 
+**Coverage status:** [See which functions are annotated and what is still pending](SOURCE_TEACHING_PROGRESS.md) · [Understand checkpoint weight-only semantics and reproducibility](CHECKPOINT_AND_REPRODUCIBILITY_LAB.md).
+
 **Begin with:** [the complete MNIST training walkthrough](MNIST_TRAINING_FROM_FIRST_PRINCIPLES.md). It connects the source files by data ownership, API calls, computations, failure paths and testability.
 
 ## Stage 1 — build and program entry
