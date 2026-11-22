@@ -250,8 +250,9 @@ std::vector<ParsedRecord> parse_csv_records(
 }
 
 // Schema conversion boundary. Nullable missing data becomes the variant's
-// missing alternative; invalid numeric/boolean/categorical text raises a
-// DatasetError carrying row/column context. Do not silently coerce labels.
+// missing alternative; malformed numeric/boolean fields raise DatasetError
+// with row/column context. Categorical and text fields remain strings; their
+// valid category vocabulary is learned later by the fitted preprocessing pipeline.
 DataValue parse_field(
     const ParsedField& field,
     const ColumnSchema& schema,
