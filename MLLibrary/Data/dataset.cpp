@@ -1,3 +1,7 @@
+// TEACHING TYPED DATASET: unlike Data/data.cpp's fixed Float32 .mat files,
+// this layer owns typed rows and schema metadata for tabular experiments.
+// Profiling infers types, Pipeline fits transforms, and CrossValidator splits
+// rows before ExperimentRunner trains estimators. See docs/DATA_TO_AUTOML_LAB.md.
 #include "dataset.hpp"
 
 #include <algorithm>
@@ -67,6 +71,9 @@ std::string contextual_message(
     return message;
 }
 
+// CSV state machine: preserves physical line numbers for typed DatasetError,
+// supports quoted delimiters/escaped quotes and CRLF, and separates parsing
+// of record boundaries from schema-aware conversion in parse_field().
 std::vector<ParsedRecord> parse_csv_records(
     const std::string& content,
     const CsvReadOptions& options)
@@ -242,6 +249,9 @@ std::vector<ParsedRecord> parse_csv_records(
     return records;
 }
 
+// Schema conversion boundary. Nullable missing data becomes the variant's
+// missing alternative; invalid numeric/boolean/categorical text raises a
+// DatasetError carrying row/column context. Do not silently coerce labels.
 DataValue parse_field(
     const ParsedField& field,
     const ColumnSchema& schema,
@@ -374,6 +384,9 @@ DatasetError::DatasetError(
 {
 }
 
+// Enforce nonempty, named, unique schema columns and at most one target flag
+// before ingestion or downstream pipeline fitting. A schema is an explicit
+// type contract, not a value learned from the full held-out dataset.
 void DatasetSchema::validate() const
 {
     if (columns.empty())
@@ -436,6 +449,8 @@ std::optional<std::size_t> DatasetSchema::target_column() const noexcept
     return std::nullopt;
 }
 
+// Take ownership of schema and typed rows; validate every row's width and
+// variant type before exposing Dataset. Source metadata identifies lineage.
 Dataset::Dataset(
     DatasetSchema schema,
     std::vector<DataRow> rows,
@@ -448,6 +463,9 @@ Dataset::Dataset(
     validate_rows();
 }
 
+// Read CSV bytes, parse records, optionally verify header names and width,
+// convert cells using declared per-column types, then validate the Dataset.
+// This method reads the entire file into memory; it is not streaming I/O.
 Dataset Dataset::from_csv(
     const std::string& path,
     DatasetSchema schema,
@@ -537,6 +555,8 @@ Dataset Dataset::from_csv(
     return Dataset(std::move(schema), std::move(rows), path);
 }
 
+// Validate typed row storage against the schema. Important after constructing
+// row subsets: downstream algorithms may assume uniform widths/types.
 void Dataset::validate_rows() const
 {
     for (std::size_t row_index = 0; row_index < rows_.size(); ++row_index)
@@ -592,6 +612,8 @@ void Dataset::validate_rows() const
     }
 }
 
+// Borrow one typed row owned by Dataset; reference validity follows the
+// Dataset object and changes if the owner is moved or destroyed.
 const DataRow& Dataset::row(std::size_t row_index) const
 {
     if (row_index >= rows_.size())
@@ -681,6 +703,9 @@ std::optional<std::string_view> Dataset::text(
     return std::string_view(std::get<std::string>(stored));
 }
 
+// Deterministic FNV-like content fingerprint over schema and variant-tagged
+// rows, using numeric bit representations. This is for reproducible lineage
+// comparisons, NOT a collision-resistant or security authentication hash.
 std::uint64_t Dataset::fingerprint64() const noexcept
 {
     std::uint64_t hash = fnv_offset;
@@ -723,6 +748,9 @@ std::string Dataset::fingerprint() const
     return output.str();
 }
 
+// Copy selected rows, retaining source/schema metadata. A repeated index is
+// not deduplicated, so selecting the same record twice changes its weight.
+// The split/cross-validation layer is responsible for disjoint partitions.
 Dataset Dataset::select_rows(const std::vector<std::size_t>& indices) const
 {
     std::vector<DataRow> selected;
@@ -741,6 +769,10 @@ Dataset Dataset::select_rows(const std::vector<std::size_t>& indices) const
     return Dataset(schema_, std::move(selected), source_);
 }
 
+// Split by finite nonnegative fractions summing to one. An optional seeded
+// Fisher-Yates shuffle creates a reproducible order; floor training and
+// validation counts, give remaining records to test. This is a simple random
+// split, not group-aware, stratified or time-series cross-validation.
 DatasetSplit Dataset::split(const DatasetSplitOptions& options) const
 {
     const bool finite = std::isfinite(options.training_fraction)
