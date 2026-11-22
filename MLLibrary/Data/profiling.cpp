@@ -1,3 +1,7 @@
+// TEACHING PROFILING: infer optional schema hints and summarize Dataset rows.
+// Dataset/dataset.cpp owns typed ingestion, Preprocessing/pipeline.cpp learns
+// train-only transformations, and AutoML/automl.cpp reads these profiles to
+// generate bounded search candidates. See docs/DATA_TO_AUTOML_LAB.md.
 #include "profiling.hpp"
 
 #include <algorithm>
@@ -41,6 +45,9 @@ std::string read_file(const std::string& path)
     return buffer.str();
 }
 
+// A separate CSV parser for schema-inference sampling, with quote/newline
+// rules. Inferred types are heuristic; typed Dataset::from_csv remains the
+// validation authority for the final records and declared target schema.
 std::vector<RawRecord> parse_records(const std::string& content, const CsvReadOptions& options)
 {
     if (options.delimiter == '\0' || options.delimiter == '"'
@@ -281,6 +288,10 @@ void write_text(const std::string& path, const std::string& content)
 
 } // namespace
 
+// Inspect a bounded initial sample of rows to infer bool/numeric/categorical
+// versus text columns, nullable status and a declared target. This is
+// exploratory type inference: if performed using the full dataset before a
+// holdout split it can convey distributional information into model design.
 DatasetSchema infer_csv_schema(const std::string& path, const SchemaInferenceOptions& options)
 {
     if (options.maximum_rows == 0)
@@ -389,11 +400,17 @@ DatasetSchema infer_csv_schema(const std::string& path, const SchemaInferenceOpt
     return schema;
 }
 
+// Compose schema inference with the strict typed CSV loader in dataset.cpp.
+// Keep inferred heuristics and actual row validation conceptually separate.
 Dataset load_inferred_csv(const std::string& path, const SchemaInferenceOptions& options)
 {
     return Dataset::from_csv(path, infer_csv_schema(path, options), options.csv);
 }
 
+// Summarize row/column counts, content fingerprint, optional duplicate rows,
+// type/missingness/unique frequencies, numeric moments and target imbalance.
+// Warnings describe observed data; they do not prove causation or fitness for
+// a particular model. AutoMLPlanner consumes this profile for search planning.
 DatasetProfile profile_dataset(const Dataset& dataset, const DatasetProfileOptions& options)
 {
     DatasetProfile profile;
@@ -487,6 +504,8 @@ DatasetProfile profile_dataset(const Dataset& dataset, const DatasetProfileOptio
     return profile;
 }
 
+// Serialize observable profile counts/statistics to JSON for audit/reporting.
+// This does not re-read raw data or fit preprocessing state.
 std::string dataset_profile_to_json(const DatasetProfile& profile)
 {
     std::ostringstream output;
@@ -539,6 +558,8 @@ std::string dataset_profile_to_json(const DatasetProfile& profile)
     return output.str();
 }
 
+// Render profile statistics as standalone HTML; escape user-derived strings
+// so labels/source text cannot be treated as active markup.
 std::string dataset_profile_to_html(const DatasetProfile& profile)
 {
     std::ostringstream output;
@@ -588,11 +609,13 @@ std::string dataset_profile_to_html(const DatasetProfile& profile)
     return output.str();
 }
 
+// Persist the generated JSON, surfacing filesystem failures to the caller.
 void write_dataset_profile_json(const DatasetProfile& profile, const std::string& path)
 {
     write_text(path, dataset_profile_to_json(profile));
 }
 
+// Persist the generated HTML for visual diagnostics, not model inference.
 void write_dataset_profile_html(const DatasetProfile& profile, const std::string& path)
 {
     write_text(path, dataset_profile_to_html(profile));
