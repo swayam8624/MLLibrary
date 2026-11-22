@@ -1,3 +1,8 @@
+// TEACHING BENCHMARK FORMAT: versioned JSON manifest plus measured latency,
+// throughput, memory and numerical error. matrix_benchmark.cpp produces the
+// inputs; this file validates/serializes the record, not a performance run.
+// See docs/OBSERVABILITY_AND_BENCHMARK_LAB.md.
+
 #include "benchmark.hpp"
 
 #include <cmath>
@@ -36,12 +41,16 @@ namespace
 
 namespace mllibrary::benchmark
 {
+    // Require run identity, benchmark and compiler/platform fields before
+    // allowing a JSON artifact to imply reproducible measurement provenance.
     void ExperimentManifest::validate() const
     {
         if (runID.empty() || benchmarkName.empty() || compiler.empty() || platform.empty())
             throw std::invalid_argument("Experiment manifest identity and environment fields are required.");
     }
 
+    // Reject invalid/nonfinite latency, throughput and absolute-error fields.
+    // This does not prove results accurate against an external baseline.
     void BenchmarkResult::validate() const
     {
         if (measuredIterations == 0
@@ -53,6 +62,8 @@ namespace mllibrary::benchmark
             throw std::invalid_argument("Benchmark result contains invalid measurements.");
     }
 
+    // Serialize one validated manifest and result with escaped string fields;
+    // return false plus optional error on bad inputs or filesystem failure.
     bool write_json_report(
         const ExperimentManifest& manifest,
         const BenchmarkResult& result,
