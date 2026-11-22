@@ -5,6 +5,12 @@
 //  Created by Swayam Singal on 11/04/26.
 //
 
+// TEACHING NUMERICAL KERNELS — see docs/MNIST_TRAINING_FROM_FIRST_PRINCIPLES.md.
+// Model/model.cpp calls these during forward and reverse passes; training.cpp
+// uses reductions and parameter updates. Matrices are arena-backed Float32
+// row-major buffers, not owning std::vector objects. Most public kernels
+// return b32 false on invalid shapes/pointers rather than throwing.
+// Not all APIs can safely accept partially overlapping source/dest ranges.
 #include "matrix.hpp"
 #include "arena.h"
 #include "prng.h"
@@ -31,6 +37,9 @@ u64 element_count(const Matrix* matrix)
 // Creation
 //======================
 
+// Allocate a Matrix descriptor AND its Float32 data from the caller's arena.
+// The lifetime follows MemArena, not an independent Matrix destructor;
+// shape multiplication is widened to u64 for push_array's allocation guard.
 Matrix *mat_create(MemArena *arena, u32 rows, u32 cols)
 {
     Matrix *mat = push_struct<Matrix>(arena);
@@ -46,6 +55,8 @@ Matrix *mat_create(MemArena *arena, u32 rows, u32 cols)
     return mat;
 }
 
+// Equal-shape raw byte copy. std::memcpy does not support partially
+// overlapping buffers; use nonoverlapping storage (or a memmove-style API).
 b32 mat_copy(Matrix *dst, const Matrix *src)
 {
     if (!dst || !src || !dst->data || !src->data)
@@ -63,6 +74,8 @@ b32 mat_copy(Matrix *dst, const Matrix *src)
 // Basic ops
 //======================
 
+// Zero every Float32 bit pattern. training.cpp clears all parameter and
+// intermediate gradients before a new batch; reverse mode then accumulates.
 void mat_clear(Matrix *mat)
 {
     if (!mat || !mat->data)
@@ -71,6 +84,8 @@ void mat_clear(Matrix *mat)
                 sizeof(f32) * element_count(mat));
 }
 
+// Assign one scalar to every logical element; model.cpp seeds the root loss
+// gradient using this operation before reverse traversal.
 void mat_fill(Matrix *mat, f32 x)
 {
     if (!mat || !mat->data)
@@ -82,6 +97,9 @@ void mat_fill(Matrix *mat, f32 x)
     }
 }
 
+// Weight initialization draws from the GLOBAL PRNG wrapper in Core/prng.cpp.
+// Reproducibility therefore depends on when prng_seed is called, separate
+// from the training descriptor's independently seeded batch-shuffle stream.
 void mat_fill_rand(Matrix *mat, f32 lower, f32 upper)
 {
     if (!mat || !mat->data)
@@ -94,6 +112,8 @@ void mat_fill_rand(Matrix *mat, f32 lower, f32 upper)
     }
 }
 
+// In-place scaling used by probability normalization and reductions;
+// modifies the arena-owned value buffer, not a separate result allocation.
 void mat_scale(Matrix *mat, f32 scale)
 {
     if (!mat || !mat->data)
@@ -106,6 +126,8 @@ void mat_scale(Matrix *mat, f32 scale)
     }
 }
 
+// Scalar reduction over the entire flat matrix. main/model training uses it
+// to sum the elementwise cross-entropy matrix into sample loss.
 f32 mat_sum(const Matrix *mat)
 {
     if (!mat || !mat->data)
@@ -120,6 +142,8 @@ f32 mat_sum(const Matrix *mat)
     return sum;
 }
 
+// Return flat maximum index for evaluation. Empty/null matrices return 0,
+// so callers must validate nonempty data before interpreting index 0 as class.
 u64 mat_argmax(const Matrix *mat)
 {
     if (!mat || !mat->data)
@@ -143,6 +167,8 @@ u64 mat_argmax(const Matrix *mat)
 // Math ops
 //======================
 
+// Shape-preserving elementwise add; model.cpp uses it both in the residual
+// forward path and to accumulate gradient contributions into parent buffers.
 b32 mat_add(Matrix *out, const Matrix *a, const Matrix *b)
 {
     if (!out || !a || !b || !out->data || !a->data || !b->data)
@@ -160,6 +186,8 @@ b32 mat_add(Matrix *out, const Matrix *a, const Matrix *b)
     return true;
 }
 
+// Shape-preserving elementwise subtract. In reverse-mode differentiation,
+// out may alias an operand's gradient buffer for accumulation.
 b32 mat_sub(Matrix *out, const Matrix *a, const Matrix *b)
 {
     if (!out || !a || !b || !out->data || !a->data || !b->data)
@@ -181,6 +209,12 @@ b32 mat_sub(Matrix *out, const Matrix *a, const Matrix *b)
 // Matmul kernels
 //======================
 
+// Core GEMM: transpose_a/transpose_b select the logical operand layouts
+// without materializing transposes. zero_out=true overwrites C; false adds
+// the dot-product contribution into existing C. model.cpp uses the latter
+// for shared-graph gradient accumulation (dA=dC*B^T, dB=A^T*dC).
+// Invalid shape/pointer returns false; the model interpreter currently does
+// not propagate this bool as a typed exception.
 b32 mat_mul(
     Matrix *out, const Matrix *a, const Matrix *b,
     b32 zero_out, b32 transpose_a, b32 transpose_b)
@@ -226,6 +260,8 @@ b32 mat_mul(
 // Activations and losses
 //======================
 
+// Pointwise max(0,x) on identical shapes. The derivative helper below uses
+// the input's positive region; the kink at zero is nondifferentiable.
 b32 mat_relu(Matrix *out, const Matrix *in)
 {
     if (!out || !in || !out->data || !in->data)
@@ -243,6 +279,9 @@ b32 mat_relu(Matrix *out, const Matrix *in)
     return true;
 }
 
+// Stable softmax over the ENTIRE flattened matrix (not one row per sample).
+// Subtracting the maximum avoids large positive exponent overflow for finite
+// inputs. model.cpp's MV_OP_SOFTMAX dispatch uses this implementation.
 b32 mat_softmax(Matrix *out, const Matrix *in)
 {
     if (!out || !in || !out->data || !in->data)
@@ -276,6 +315,9 @@ b32 mat_softmax(Matrix *out, const Matrix *in)
     return true;
 }
 
+// Elementwise target/probability cross-entropy; output keeps input shape.
+// The training loop explicitly calls mat_sum to obtain one sample cost.
+// This is distinct from the scalar logits-level fused loss below.
 b32 mat_cross_entropy(Matrix *out, const Matrix *p, const Matrix *q)
 {
     if (!out || !p || !q || !out->data || !p->data || !q->data)
@@ -295,6 +337,9 @@ b32 mat_cross_entropy(Matrix *out, const Matrix *p, const Matrix *q)
     return true;
 }
 
+// Numerically focused fused alternative: accepts targets and raw logits,
+// produces one [1,1] loss value. main.cpp currently constructs softmax
+// followed by elementwise cross entropy instead of this fused operation.
 b32 mat_softmax_cross_entropy(
     Matrix* out,
     const Matrix* targets,
@@ -343,6 +388,8 @@ b32 mat_softmax_cross_entropy(
 // Gradients
 //======================
 
+// Reverse-mode vector-Jacobian product for ReLU. ADD to out instead of
+// assigning: a graph node can have multiple downstream gradient consumers.
 b32 mat_relu_add_grad(Matrix *out, const Matrix *in, const Matrix *grad)
 {
     if (!out || !in || !grad || !out->data || !in->data || !grad->data)
@@ -363,6 +410,8 @@ b32 mat_relu_add_grad(Matrix *out, const Matrix *in, const Matrix *grad)
     return true;
 }
 
+// Full-softmax vector-Jacobian product. Uses dot(probability, incoming_grad)
+// to account for every output's dependence on all logits, then ADDS to out.
 b32 mat_softmax_add_grad(Matrix *out, const Matrix *softmax_out, const Matrix *grad)
 {
     if (!out || !softmax_out || !grad || !out->data || !softmax_out->data || !grad->data)
@@ -386,6 +435,9 @@ b32 mat_softmax_add_grad(Matrix *out, const Matrix *softmax_out, const Matrix *g
     return true;
 }
 
+// Cross-entropy reverse path: p_grad/q_grad are optional independently;
+// the target may intentionally be nondifferentiable while predicted
+// probabilities receive gradients. Shapes are checked before writes.
 b32 mat_cross_entropy_add_grad(
     Matrix *p_grad, Matrix *q_grad,
     const Matrix *p, const Matrix *q, const Matrix *grad)
@@ -417,6 +469,9 @@ b32 mat_cross_entropy_add_grad(
     return true;
 }
 
+// Fused logits-level loss backward; root gradient is scalar, while the
+// computed logits gradient has target/logit shape and accumulates into
+// existing storage. Compare with a finite-difference reference.
 b32 mat_softmax_cross_entropy_add_grad(
     Matrix* target_grad,
     Matrix* logits_grad,
