@@ -1,3 +1,7 @@
+// TEACHING EXPERIMENT BOUNDARY: consume the dense PreparedDataset output of
+// Preprocessing::FittedPipeline, wrap Classical/* estimators, fit on training,
+// score separately on optional validation/test, and emit reproducible reports.
+// CrossValidator/Search/AutoML depend on these result contracts.
 #include "experiment.hpp"
 
 #include "classical.hpp"
@@ -21,6 +25,8 @@ namespace {
 using Clock = std::chrono::steady_clock;
 using mllibrary::data::DataValue;
 
+// Ensure nonempty rectangular flattened feature storage and matching feature
+// names/required targets before passing buffers into an estimator.
 void validate_prepared(
     const PreparedDataset& dataset,
     bool require_targets,
@@ -65,6 +71,9 @@ void require_same_features(
     }
 }
 
+// Convert double row-major PreparedDataset into the Float32 DenseTable used
+// by the classical implementations. This precision conversion matters for
+// comparisons against double-precision preprocessing/metric calculations.
 DenseTable to_dense_table(const PreparedDataset& dataset)
 {
     DenseTable rows(dataset.row_count, std::vector<float>(dataset.column_count));
@@ -97,6 +106,8 @@ std::string target_display(const DataValue& value)
     throw std::invalid_argument("Classification targets must not be missing.");
 }
 
+// Stable label representation used to map typed targets to model class IDs;
+// preserve mapping consistently between training and held-out predictions.
 std::string target_key(const DataValue& value)
 {
     if (const auto* boolean_value = std::get_if<bool>(&value))
@@ -435,6 +446,8 @@ std::string json_escape(std::string_view value)
     return output.str();
 }
 
+// Export evaluated samples/predictions to a report artifact. Treat labels
+// and values as dataset-derived content requiring appropriate escaping.
 void write_predictions(
     const std::filesystem::path& path,
     const DatasetEvaluation& evaluation)
@@ -456,6 +469,8 @@ void write_predictions(
         throw std::runtime_error("Writing prediction artifact failed for '" + path.string() + "'.");
 }
 
+// Predict on a PREPARED, already-frozen validation/test table, then retain
+// actual/predicted values and optional scores. No fit() or model selection here.
 DatasetEvaluation evaluate_dataset(
     const Estimator& estimator,
     TaskKind task,
@@ -500,11 +515,16 @@ DatasetEvaluation evaluate_dataset(
 
 } // namespace
 
+// Default optional score interface returns an empty vector; only adapters
+// that implement probability scores provide binary log-loss/ROC-AUC inputs.
 std::vector<double> Estimator::predict_scores(const PreparedDataset&) const
 {
     return {};
 }
 
+// Factory maps public estimator kind/settings to a concrete Classical/
+// implementation. Invalid hyperparameters or unsupported kinds throw;
+// a new estimator object is created for every independent training run.
 std::unique_ptr<Estimator> make_estimator(const EstimatorConfig& config)
 {
     if (!(config.learning_rate > 0.0) || !std::isfinite(config.learning_rate))
@@ -548,11 +568,17 @@ std::unique_ptr<Estimator> make_estimator(const EstimatorConfig& config)
     throw std::invalid_argument("Unsupported estimator kind.");
 }
 
+// Store the declared classification/regression task and selected estimator
+// configuration; task compatibility is checked in run().
 ExperimentRunner::ExperimentRunner(TaskKind task, EstimatorConfig estimator)
     : task_(task), estimator_(estimator)
 {
 }
 
+// Construct an estimator, validate task compatibility, fit only on supplied
+// training features, then score optional held-out sets. Record fit duration,
+// model-state units and dataset/pipeline fingerprints; catch exceptions into
+// ExperimentResult rather than claiming success on a partial run.
 ExperimentResult ExperimentRunner::run(
     const PreparedDataset& training,
     const PreparedDataset* validation,
@@ -602,6 +628,8 @@ ExperimentResult ExperimentRunner::run(
     return result;
 }
 
+// Serialize model choice, training metadata and optional evaluation summaries.
+// Values originate from this run; no additional fitting occurs here.
 std::string ExperimentResult::to_json() const
 {
     auto write_evaluation = [](std::ostringstream& output, const DatasetEvaluation& value)
@@ -653,6 +681,8 @@ std::string ExperimentResult::to_json() const
     return output.str();
 }
 
+// Emit the experiment report and prediction artifacts; distinguish
+// completed run artifacts from a model persistence/resume mechanism.
 void ExperimentResult::write_artifacts(const std::string& output_directory) const
 {
     const std::filesystem::path directory(output_directory);
