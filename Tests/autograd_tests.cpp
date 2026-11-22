@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: Finite-difference oracle for graph autodiff, shared residual-gradient accumulation and softmax loss paths.
+// The source asserts these contracts; actual execution/host evidence must be
+// captured separately before marking the current build as verified.
+
 #include <cmath>
 #include <cstdio>
 #include <vector>
@@ -27,6 +31,7 @@ void clear_program_gradients(ModelProgram& program)
     }
 }
 
+// TEACHING TEST: Perturbs one parameter at a time, compares central-difference loss slope with accumulated analytic gradient.
 bool gradient_matches_finite_difference(
     ModelProgram& program,
     ModelVar* objective,
@@ -76,6 +81,7 @@ bool gradient_matches_finite_difference(
     return true;
 }
 
+// TEACHING TEST: Validates chain rule through both elementwise and matrix multiply nodes.
 bool test_composed_elementwise_and_matmul_gradients()
 {
     MemArena* arena = MemArena::create(MiB(8), KiB(64));
@@ -115,6 +121,7 @@ bool test_composed_elementwise_and_matmul_gradients()
     return passed;
 }
 
+// TEACHING TEST: Checks softmax gradient as a full vector-Jacobian product, not independent scalar derivatives.
 bool test_softmax_jacobian_vector_product()
 {
     MemArena* arena = MemArena::create(MiB(8), KiB(64));
@@ -151,6 +158,7 @@ bool test_softmax_jacobian_vector_product()
     return passed;
 }
 
+// TEACHING TEST: Checks probability-level cross-entropy backward with selected targets.
 bool test_probability_cross_entropy_gradient()
 {
     MemArena* arena = MemArena::create(MiB(8), KiB(64));
@@ -185,6 +193,7 @@ bool test_probability_cross_entropy_gradient()
     return passed;
 }
 
+// TEACHING TEST: Checks unfused softmax plus cross-entropy graph differentiation.
 bool test_composed_softmax_cross_entropy_gradient()
 {
     MemArena* arena = MemArena::create(MiB(8), KiB(64));
@@ -220,6 +229,7 @@ bool test_composed_softmax_cross_entropy_gradient()
     return passed;
 }
 
+// TEACHING TEST: Checks fused logits-level scalar loss gradient against finite differences.
 bool test_fused_softmax_cross_entropy_gradient()
 {
     MemArena* arena = MemArena::create(MiB(8), KiB(64));
@@ -255,6 +265,7 @@ bool test_fused_softmax_cross_entropy_gradient()
     return passed;
 }
 
+// TEACHING TEST: Verifies a shared parent receives contributions from BOTH residual branches.
 bool test_shared_residual_fanout_accumulates_gradients()
 {
     MemArena* arena = MemArena::create(MiB(8), KiB(64));
