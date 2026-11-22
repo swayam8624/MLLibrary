@@ -40,6 +40,14 @@ These are **112 targeted teaching comments/sections** across ten first-party imp
 
 These comments are grounded in the file implementation and cross-file calls. They do **not** certify that every branch, error path, platform function, or test within these files is complete.
 
+## Public-header and test-reading continuation
+
+**Ten related public API headers annotated:** [`Data/data.hpp`](../MLLibrary/Data/data.hpp), [`Data/dataset.hpp`](../MLLibrary/Data/dataset.hpp), [`Data/profiling.hpp`](../MLLibrary/Data/profiling.hpp), [`Preprocessing/pipeline.hpp`](../MLLibrary/Preprocessing/pipeline.hpp), [`Classical/classical.hpp`](../MLLibrary/Classical/classical.hpp), [`Evaluation/metrics.hpp`](../MLLibrary/Evaluation/metrics.hpp), [`Evaluation/cross_validation.hpp`](../MLLibrary/Evaluation/cross_validation.hpp), [`Experiment/experiment.hpp`](../MLLibrary/Experiment/experiment.hpp), [`Search/search.hpp`](../MLLibrary/Search/search.hpp), [`AutoML/automl.hpp`](../MLLibrary/AutoML/automl.hpp). Coverage includes 50 new explanatory declarations/sections, including ownership, train-only fit and safe evaluation rules.
+
+**Eleven first-party default test source files annotated:** `core_tests.cpp`, `arena_tests.cpp`, `training_tests.cpp`, `autograd_tests.cpp`, `dataset_tests.cpp`, `profiling_tests.cpp`, `pipeline_tests.cpp`, `experiment_tests.cpp`, `evaluation_tests.cpp`, `search_tests.cpp` and `automl_tests.cpp` under [`Tests/`](../Tests). The additions identify the intentions of **54 test/helper functions**, plus file-level evidence boundaries. See [the named CTest-target learning and evidence map](TEST_EVIDENCE_AND_LEARNING_MAP.md).
+
+**Note:** comments and test names are not test-run evidence. Test targets were inspected in [`CMakeLists.txt`](../CMakeLists.txt) but this pass did not compile or execute them.
+
 ## Remaining targeted code study
 
 **Source and headers:** [`Core/prng.h`](../MLLibrary/Core/prng.h), [`Math/matrix.hpp`](../MLLibrary/Math/matrix.hpp), [`Model/model.hpp`](../MLLibrary/Model/model.hpp), [`Training/training.hpp`](../MLLibrary/Training/training.hpp) and [`Training/checkpoint.hpp`](../MLLibrary/Training/checkpoint.hpp) need API-by-API contract review to align all declarations with their implementations. Platform-specific allocation adapters need explicit native error and decommit checks.
@@ -52,7 +60,7 @@ These comments are grounded in the file implementation and cross-file calls. The
 
 **Optional module integrations:** [`MLLibrary/TensorRuntime.cppm`](../MLLibrary/TensorRuntime.cppm), [`MLLibrary/TensorGPURuntime.cppm`](../MLLibrary/TensorGPURuntime.cppm), [`ModuleInterfaces/`](../ModuleInterfaces). Compare actual enabled CMake module targets with merely declared interfaces before claiming a working module path.
 
-**Tests:** [`Tests/`](../Tests). Each new teaching claim should be connected to an existing test or a clearly proposed test, with a recorded host/compiler and commit when executed.
+**Tests:** the eleven default scalar/ML test files now have targeted teaching comments and a [CTest evidence map](TEST_EVIDENCE_AND_LEARNING_MAP.md), but execution, sanitizer checks and coverage measurement remain to be performed on a known host and commit. Optional module/GPU tests still need a separate host-qualified review.
 
 ## Source-level issues to distinguish from fixes
 
