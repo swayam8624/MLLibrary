@@ -99,9 +99,10 @@ void draw_mnist_digit(const f32 *data)
 
 // Convert each scalar class index from labels into a row-wise one-hot Matrix.
 // Output must have the same sample count and num_classes columns; main.cpp
-// allocates it in MemArena before model training. Invalid class values are
-// subject to this implementation's handling: inspect the loop before relying
-// on exception/error propagation (API returns void).
+// allocates it in MemArena before model training. The loop reads the first
+// label element in each row and silently skips integer class IDs >= num_classes.
+// It does not report invalid/fractional labels, so callers must validate them
+// before conversion; this void API supplies no error result.
 void one_hot_encode(
     Matrix *out,
     const Matrix *labels,
