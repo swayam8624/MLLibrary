@@ -1,3 +1,9 @@
+// TEACHING DATASET VISUALIZATION: raw Float32 MNIST-compatible images and
+// labels -> validated statistics, class histogram and bounded HTML sample grid.
+// Raw numerical statistics use unmodified values; visual pixel intensities
+// are clamped to [0,1] only while writing the display array.
+// See docs/OBSERVABILITY_AND_BENCHMARK_LAB.md.
+
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -19,6 +25,8 @@ namespace
     constexpr std::size_t kPixelsPerImage = kImageWidth * kImageHeight;
     constexpr std::size_t kClassCount = 10;
 
+    // Read native Float32 bytes and reject empty or nonmultiple file sizes;
+    // no standard MNIST IDX parsing or endianness conversion is performed.
     bool ReadFloatFile(const char* path, std::vector<float>& values)
     {
         std::ifstream input(path, std::ios::binary | std::ios::ate);
@@ -31,12 +39,15 @@ namespace
         return input.good();
     }
 
+    // Bound embedded image count to 1..500 to cap HTML/report payload size.
     bool ParseSampleLimit(std::string_view text, std::size_t& value)
     {
         const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
         return error == std::errc{} && end == text.data() + text.size() && value > 0 && value <= 500;
     }
 
+    // Emit normalized display grayscale values clamped to [0,1]. This does
+    // not rewrite the source pixels or the raw-statistics aggregation.
     void WriteNumberArray(std::ostream& output, std::span<const float> values)
     {
         for (std::size_t index = 0; index < values.size(); ++index)
@@ -47,6 +58,9 @@ namespace
     }
 }
 
+// CLI validates Float32 bytes, exactly 784 pixels/label, finite image values
+// and integral 0..9 labels. Writes aggregate mean/std/range, class counts
+// and a deterministic bounded sample grid to standalone HTML.
 int main(int argumentCount, char** arguments)
 {
     if (argumentCount < 4 || argumentCount > 5)
