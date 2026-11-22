@@ -1,3 +1,8 @@
+// TEACHING VISUALIZATION: turn training.cpp's epoch,accuracy,cost,learning_rate
+// CSV into a standalone HTML canvas report. This reads recorded metrics only;
+// it does not train/evaluate a model or validate scientific generalization.
+// See docs/OBSERVABILITY_AND_BENCHMARK_LAB.md.
+
 #include <charconv>
 #include <cstdio>
 #include <fstream>
@@ -15,6 +20,8 @@ struct Metric final {
     double learningRate = 0.0;
 };
 
+// Strict token-length numeric parsing using from_chars. Check input-domain
+// finiteness separately before treating values as trustworthy experiment data.
 bool parseNumber(std::string_view text, double& output)
 {
     const char* begin = text.data();
@@ -23,6 +30,8 @@ bool parseNumber(std::string_view text, double& output)
     return error == std::errc{} && pointer == end;
 }
 
+// Require four comma-separated numeric fields matching training.cpp's CSV
+// header; reject malformed rows rather than inventing missing epochs.
 bool parseMetric(std::string_view line, Metric& metric)
 {
     std::string_view fields[4];
@@ -38,6 +47,8 @@ bool parseMetric(std::string_view line, Metric& metric)
         && parseNumber(fields[2], metric.loss) && parseNumber(fields[3], metric.learningRate);
 }
 
+// Serialize one numeric member across all epoch records into embedded JS
+// arrays. The report visualizes recorded data, not raw training samples.
 void writeSeries(std::ostream& output, const std::vector<Metric>& metrics, double Metric::*member)
 {
     for (std::size_t index = 0; index < metrics.size(); ++index)
@@ -49,6 +60,8 @@ void writeSeries(std::ostream& output, const std::vector<Metric>& metrics, doubl
 
 } // namespace
 
+// CLI: read exactly one metrics CSV, verify header/rows, then write a self-
+// contained chart document with final summary and three time series.
 int main(int argumentCount, char** arguments)
 {
     if (argumentCount != 3)
