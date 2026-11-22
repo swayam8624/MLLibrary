@@ -1,3 +1,7 @@
+// TEACHING PIPELINE: learn imputation, scaling, boolean/category encoding
+// strictly from TRAINING rows, then apply the frozen state to validation,
+// test and inference datasets. CrossValidator constructs a new pipeline per
+// fold to avoid validation-feature leakage. See docs/DATA_TO_AUTOML_LAB.md.
 #include "pipeline.hpp"
 
 #include <algorithm>
@@ -56,6 +60,8 @@ int enum_value(UnknownCategoryPolicy value) { return static_cast<int>(value); }
 
 } // namespace
 
+// Row-major numerical feature view: index = row*column_count+column.
+// Consumers such as ExperimentRunner must respect the fitted feature width.
 double PreparedDataset::feature(std::size_t row, std::size_t column) const
 {
     if (row >= row_count || column >= column_count)
@@ -63,12 +69,16 @@ double PreparedDataset::feature(std::size_t row, std::size_t column) const
     return values[row * column_count + column];
 }
 
+// Capture preprocessing policy; construction alone learns nothing and does
+// not make transform() legal until fit() has built column state.
 FittedPipeline::FittedPipeline(PipelineOptions options)
     : options_(options)
 {
     require_finite(options_.numeric_constant, "Numeric imputation constant");
 }
 
+// Stable schema contract for post-fit transform compatibility. It is about
+// column names/types/roles, not a promise that data values are identical.
 std::string FittedPipeline::compute_schema_signature(const Dataset& dataset)
 {
     std::uint64_t hash = fnv_offset;
@@ -83,6 +93,11 @@ std::string FittedPipeline::compute_schema_signature(const Dataset& dataset)
     return hex64(hash);
 }
 
+// Learn imputation values, numeric normalization offsets/scales, boolean
+// handling and sorted one-hot category vocabularies from training only;
+// exclude the declared target. Produces feature_names_, states_, a schema
+// signature and training fingerprint consumed by transform() and artifacts.
+// Do NOT fit on validation/test rows, even when doing cross-validation.
 void FittedPipeline::fit(const Dataset& training)
 {
     if (training.empty())
@@ -233,6 +248,8 @@ void FittedPipeline::fit(const Dataset& training)
     fitted_ = true;
 }
 
+// Refuse inference before fit or against a different schema signature.
+// A valid schema alone does not promise values have valid known categories.
 void FittedPipeline::require_compatible(const Dataset& dataset) const
 {
     if (!fitted_) throw PreprocessingError("Preprocessing pipeline must be fitted before transform.");
@@ -240,6 +257,10 @@ void FittedPipeline::require_compatible(const Dataset& dataset) const
         throw PreprocessingError("Dataset schema does not match the fitted preprocessing pipeline.");
 }
 
+// Apply FROZEN train-fitted state. Convert selected numeric, boolean and
+// categorical columns into a row-major dense feature table, separately
+// preserving target values; unknown categories follow the declared policy.
+// Never update category vocabularies or scaling statistics from held-out rows.
 PreparedDataset FittedPipeline::transform(const Dataset& dataset) const
 {
     require_compatible(dataset);
@@ -309,12 +330,17 @@ PreparedDataset FittedPipeline::transform(const Dataset& dataset) const
     return result;
 }
 
+// Convenience for the training fold ONLY: fit once then transform that fold.
+// Validation/test callers must use transform(), not fit_transform().
 PreparedDataset FittedPipeline::fit_transform(const Dataset& training)
 {
     fit(training);
     return transform(training);
 }
 
+// Save fitted schema signature, training fingerprint, policies, feature names
+// and learned per-column state. Text serialization needs rigorous version and
+// corruption tests before claiming cross-platform long-term compatibility.
 void FittedPipeline::save(const std::string& path) const
 {
     if (!fitted_) throw PreprocessingError("Cannot save an unfitted preprocessing pipeline.");
@@ -348,6 +374,8 @@ void FittedPipeline::save(const std::string& path) const
     if (!output) throw PreprocessingError("Failed while writing preprocessing pipeline file '" + path + "'.");
 }
 
+// Recreate fitted preprocessing state from the serialized format. A loaded
+// pipeline must still check dataset schema compatibility before transform.
 FittedPipeline FittedPipeline::load(const std::string& path)
 {
     std::ifstream input(path, std::ios::binary);
