@@ -5,6 +5,10 @@
 //  Created by Swayam Singal on 12/04/26.
 //
 
+// TEACHING BRIDGE: main.cpp's fixed-size raw MNIST loader. Unlike the typed
+// CSV Dataset in dataset.cpp, this path expects unheadered binary Float32
+// matrices of exactly caller-declared shape. Memory belongs to MemArena and
+// all callers must preserve its lifetime. See docs/DATA_TO_AUTOML_LAB.md.
 #include "data.hpp"
 #include "arena.h"
 
@@ -15,6 +19,10 @@
 // Load matrix from file
 //======================
 
+// Open a raw binary file, check its exact byte length against rows*cols
+// Float32 values, allocate an arena-backed Matrix via Math/matrix.cpp and
+// read all bytes. Failure returns nullptr; a failed read does not roll back
+// the arena's allocations. No CSV, IDX, endianness or dtype conversion here.
 Matrix *mat_load(
     MemArena *arena,
     u32 rows,
@@ -66,6 +74,9 @@ Matrix *mat_load(
 // Visualization
 //======================
 
+// Terminal-only debugging view of a 28x28 Float32 image. Assumes the pointer
+// addresses at least 784 elements in the expected pixel order; this function
+// has no length parameter and does not validate its caller's buffer extent.
 void draw_mnist_digit(const f32 *data)
 {
     for (u32 y = 0; y < 28; y++)
@@ -86,6 +97,11 @@ void draw_mnist_digit(const f32 *data)
 // One-hot encoding
 //======================
 
+// Convert each scalar class index from labels into a row-wise one-hot Matrix.
+// Output must have the same sample count and num_classes columns; main.cpp
+// allocates it in MemArena before model training. Invalid class values are
+// subject to this implementation's handling: inspect the loop before relying
+// on exception/error propagation (API returns void).
 void one_hot_encode(
     Matrix *out,
     const Matrix *labels,
