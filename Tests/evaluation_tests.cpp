@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: Tests classification/regression metrics and KFold, stratified, group and time-series fold semantics.
+// These are source-visible assertions, not proof this test was executed on
+// the current commit. See docs/DATA_TO_AUTOML_LAB.md for corresponding theory.
+
 #include "cross_validation.hpp"
 #include "metrics.hpp"
 
@@ -20,6 +24,7 @@ bool nearly_equal(double left, double right, double tolerance = 1e-9)
     return std::fabs(left - right) <= tolerance;
 }
 
+// TEACHING TEST: Asserts a hand-checkable confusion matrix, macro precision/recall/F1 and binary AUC.
 bool test_classification_metrics()
 {
     const ClassificationMetrics metrics = calculate_classification_metrics(
@@ -43,6 +48,7 @@ bool test_classification_metrics()
         && nearly_equal(*metrics.roc_auc, 0.75);
 }
 
+// TEACHING TEST: Checks MAE/MSE/RMSE/R2 against a known small prediction vector.
 bool test_regression_metrics()
 {
     const RegressionMetrics metrics = calculate_regression_metrics(
@@ -58,6 +64,7 @@ bool test_regression_metrics()
         && nearly_equal(*metrics.mean_absolute_percentage_error, 5.0 / 18.0);
 }
 
+// TEACHING TEST: Checks row-index fold construction and foundational split invariants.
 bool test_fold_generators()
 {
     const auto kfold = make_k_folds(10, 5, 42, false);
@@ -127,6 +134,7 @@ Dataset make_binary_dataset()
     return Dataset(std::move(schema), std::move(rows), "memory://binary");
 }
 
+// TEACHING TEST: Runs classification fold evaluation through train-fitted preprocessing.
 bool test_stratified_cross_validation()
 {
     CrossValidationConfig config;
@@ -160,6 +168,7 @@ bool test_stratified_cross_validation()
     return exists;
 }
 
+// TEACHING TEST: Tests time-ordered regression evaluation without future training observations.
 bool test_regression_and_time_series_cross_validation()
 {
     DatasetSchema schema{{
@@ -196,6 +205,7 @@ bool test_regression_and_time_series_cross_validation()
         && result.aggregate.mean > 0.99;
 }
 
+// TEACHING TEST: Checks no group is split across train/validation in a given fold.
 bool test_group_cross_validation_keeps_groups_whole()
 {
     DatasetSchema schema{{
