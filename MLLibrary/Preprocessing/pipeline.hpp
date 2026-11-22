@@ -1,3 +1,7 @@
+// TEACHING PUBLIC API: fit a preprocessing state ONLY on training data,
+// then use transform() with frozen statistics and category vocabulary on
+// validation/test rows. CrossValidator constructs a fresh pipeline per fold.
+// Implementation: Preprocessing/pipeline.cpp; see DATA_TO_AUTOML_LAB.md.
 #pragma once
 
 #include "dataset.hpp"
@@ -49,6 +53,9 @@ struct PipelineOptions final {
     bool drop_text_columns = true;
 };
 
+// Non-owning semantics are NOT implied: this struct owns a dense row-major
+// double feature vector and separate typed targets, plus feature names.
+// ExperimentRunner converts features to Float32 for classical estimators.
 struct PreparedDataset final {
     std::size_t row_count = 0;
     std::size_t column_count = 0;
@@ -60,11 +67,18 @@ struct PreparedDataset final {
     [[nodiscard]] double feature(std::size_t row, std::size_t column) const;
 };
 
+// Stateful transformer: fit() learns numerical imputation/scaling and a
+// sorted one-hot vocabulary, excludes the target, and caches schema lineage.
+// Loaded pipelines must still check compatible schema on transform().
 class FittedPipeline final {
 public:
     explicit FittedPipeline(PipelineOptions options = {});
 
+    // Mutates fitted state based only on the caller's training subset.
+    // Never call using a validation/test dataset during model selection.
     void fit(const Dataset& training);
+    // Read-only application of the learned state, with a declared policy
+    // for unknown categories and missing values. Does not relearn anything.
     [[nodiscard]] PreparedDataset transform(const Dataset& dataset) const;
     [[nodiscard]] PreparedDataset fit_transform(const Dataset& training);
 
