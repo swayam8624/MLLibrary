@@ -1,5 +1,7 @@
 # MLLibrary
 
+**Learn the running implementation:** [Source reading order](docs/SOURCE_READING_ORDER.md) · [MNIST training from first principles](docs/MNIST_TRAINING_FROM_FIRST_PRINCIPLES.md). These guides distinguish the classic C++ runtime from optional KairoMath/GPU module integration.
+
 MLLibrary is a from-first-principles C++ machine-learning library. The current
 repo is the seed implementation: a small neural-network runtime that trains a
 fully connected MNIST classifier while the larger Kairo ML infrastructure is
