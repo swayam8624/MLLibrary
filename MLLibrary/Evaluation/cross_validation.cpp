@@ -1,3 +1,8 @@
+// TEACHING VALIDATION: choose independent train/validation row indices,
+// fit a NEW Preprocessing::FittedPipeline per training fold, transform held-
+// out data with frozen state, then use ExperimentRunner and metrics.cpp.
+// HyperparameterSearch and AutoML depend on this leakage boundary.
+// See docs/DATA_TO_AUTOML_LAB.md.
 #include "cross_validation.hpp"
 
 #include <algorithm>
@@ -25,6 +30,8 @@ using mllibrary::experiment::ExperimentRunner;
 using mllibrary::preprocessing::FittedPipeline;
 using mllibrary::preprocessing::PreparedDataset;
 
+// Require enough observations for the requested number of nonempty folds.
+// Invalid split configuration is an exception, not an empty evaluation.
 void validate_fold_request(std::size_t row_count, std::size_t fold_count)
 {
     if (fold_count < 2)
@@ -44,6 +51,8 @@ std::uint64_t bounded_random(std::mt19937_64& generator, std::uint64_t bound)
     }
 }
 
+// Reorder indices with a seeded generator and bounded sampling. Same inputs
+// and implementation yield the same fold ordering for reproducible tests.
 void deterministic_shuffle(
     std::vector<std::size_t>& values,
     std::mt19937_64& generator)
@@ -56,6 +65,8 @@ void deterministic_shuffle(
     }
 }
 
+// Convert mutually assigned validation buckets into explicit train and
+// validation indices. Ensure a row's held-out fold never trains on that row.
 std::vector<FoldIndices> folds_from_validation_buckets(
     std::size_t row_count,
     const std::vector<std::vector<std::size_t>>& validation_buckets)
@@ -264,6 +275,8 @@ std::string json_escape(std::string_view value)
 
 } // namespace
 
+// Optional seeded shuffle; round-robin row indices among validation buckets.
+// This simple K-fold strategy does not preserve classes, groups or time order.
 std::vector<FoldIndices> make_k_folds(
     std::size_t row_count,
     std::size_t fold_count,
@@ -285,6 +298,8 @@ std::vector<FoldIndices> make_k_folds(
     return folds_from_validation_buckets(row_count, validation);
 }
 
+// Bucket by class label and distribute rows across folds. Rejection of
+// singleton classes avoids folds whose training subset loses that class.
 std::vector<FoldIndices> make_stratified_folds(
     const std::vector<std::string>& labels,
     std::size_t fold_count,
@@ -322,6 +337,9 @@ std::vector<FoldIndices> make_stratified_folds(
     return folds_from_validation_buckets(labels.size(), validation);
 }
 
+// Assign whole groups (sorted largest-first) to least-loaded folds. Related
+// observations from a group should not straddle train/validation. Balancing
+// is greedy, not an exact optimal partition of sample counts.
 std::vector<FoldIndices> make_group_folds(
     const std::vector<std::string>& groups,
     std::size_t fold_count)
@@ -358,6 +376,9 @@ std::vector<FoldIndices> make_group_folds(
     return folds_from_validation_buckets(groups.size(), validation);
 }
 
+// Expanding-window time splits: train exclusively on earlier ordered rows,
+// validate on future blocks. This is a no-lookahead split, not random K-fold;
+// custom time ordering and time-related feature leakage remain caller risks.
 std::vector<FoldIndices> make_time_series_folds(
     const std::vector<std::size_t>& ordered_rows,
     std::size_t fold_count)
@@ -393,11 +414,18 @@ std::vector<FoldIndices> make_time_series_folds(
     return folds;
 }
 
+// Keep a cross-validation policy containing task, estimator, preprocessing
+// options, fold strategy, primary metric, seed and optional group/time columns.
 CrossValidator::CrossValidator(CrossValidationConfig config)
     : config_(std::move(config))
 {
 }
 
+// Validate requested task/metric and construct fold indices; optionally drop
+// group/time split column from features. For EACH fold, select raw rows, fit
+// FittedPipeline only on training_raw, transform validation_raw without fit,
+// run ExperimentRunner, compute metrics, then aggregate primary scores.
+// Errors are returned in CrossValidationResult, not silently skipped.
 CrossValidationResult CrossValidator::run(const Dataset& dataset) const
 {
     CrossValidationResult result;
@@ -548,6 +576,8 @@ CrossValidationResult CrossValidator::run(const Dataset& dataset) const
     return result;
 }
 
+// Serialize strategy, fold results and aggregate scores with dataset evidence.
+// Preserve fold-specific output so a mean cannot conceal an unstable split.
 std::string CrossValidationResult::to_json() const
 {
     std::ostringstream output;
@@ -596,6 +626,8 @@ std::string CrossValidationResult::to_json() const
     return output.str();
 }
 
+// Write the evaluation artifact to disk; the caller controls destination
+// provenance and must inspect errors before declaring a successful run.
 void CrossValidationResult::write_json(const std::string& path) const
 {
     const std::filesystem::path output_path(path);
