@@ -1,3 +1,6 @@
+// TEACHING PUBLIC API: one estimator fit on already prepared training
+// features, optional held-out predictions and serialized evidence. Classic
+// models reside in Classical/classical.cpp, not KairoGPU.
 #pragma once
 
 #include "pipeline.hpp"
@@ -27,6 +30,8 @@ enum class EstimatorKind : std::uint8_t {
     RandomForestClassifier,
 };
 
+// Strongly typed model-family hyperparameters consumed by make_estimator.
+// Search applies candidate values here before per-fold training.
 struct EstimatorConfig final {
     EstimatorKind kind = EstimatorKind::LogisticRegression;
     double learning_rate = 0.1;
@@ -52,6 +57,8 @@ struct DatasetEvaluation final {
     double inference_seconds = 0.0;
 };
 
+// Status, fit seconds, metadata, optional per-split evaluation and report
+// writers. A successful fit is NOT by itself an unbiased test evaluation.
 struct ExperimentResult final {
     bool success = false;
     std::string error;
@@ -70,6 +77,9 @@ struct ExperimentResult final {
     void write_artifacts(const std::string& output_directory) const;
 };
 
+// Polymorphic adapter around a classical model. fit() consumes training
+// targets; predict() returns labels/values, while predict_scores() is optional
+// and needed for binary probability-based metrics.
 class Estimator {
 public:
     virtual ~Estimator() = default;
@@ -92,6 +102,8 @@ public:
 [[nodiscard]] std::unique_ptr<Estimator> make_estimator(
     const EstimatorConfig& config);
 
+// Runtime orchestration: create estimator, train only on supplied PreparedDataset
+// training, score optional validation/test and retain dataset/pipeline lineage.
 class ExperimentRunner final {
 public:
     ExperimentRunner(TaskKind task, EstimatorConfig estimator);
