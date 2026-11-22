@@ -1,3 +1,6 @@
+// TEACHING PUBLIC API: classic CPU estimators on rectangular Float32
+// DenseTable rows. ExperimentRunner adapts these to typed PreparedDataset;
+// do not fit preprocessing or these estimators on held-out fold rows.
 #pragma once
 
 #include <cstddef>
@@ -39,8 +42,9 @@ private:
     DenseTable components_;
 };
 
-/// Lloyd k-means with deterministic first-k initialization and an explicit
-/// iteration cap. The fitted centers remain in feature space supplied to fit.
+/// Lloyd k-means with deterministic farthest-first initialization starting
+/// at the first sample, followed by nearest-center assignments and means.
+/// Cluster index is not a semantic class label; fit is training-data only.
 class KMeans final {
 public:
     KMeans(std::size_t clusters, std::size_t maxIterations = 300, float tolerance = 1e-4f);
@@ -57,6 +61,8 @@ private:
 
 /// Binary logistic regression optimized by deterministic full-batch gradient
 /// descent. Labels must be exactly zero or one.
+// Binary class IDs 0/1 only; predict_probability exposes a positive-class
+// score. This implementation is not multinomial logistic regression.
 class LogisticRegression final {
 public:
     LogisticRegression(float learningRate = 0.1f, std::size_t iterations = 500, float l2 = 0.0f);
@@ -94,6 +100,8 @@ private:
 
 /// Stores a labelled tabular set and predicts by deterministic Euclidean
 /// nearest-neighbor voting. Equal vote counts resolve to the smaller label.
+// Stores a copy/move of entire fitted table and labels. Query-time work
+// scales with the training data rather than just a fixed parameter vector.
 class KNearestNeighbors final {
 public:
     explicit KNearestNeighbors(std::size_t neighbors = 5);
@@ -166,6 +174,8 @@ private:
 /// Deterministic bootstrap-aggregated classification forest. Each tree uses a
 /// seeded bootstrap sample and seeded per-node feature subset. Vote ties resolve
 /// to the smaller integer class label.
+// Classification bagging, not random-forest regression; fit constructs
+// seeded bootstrap training tables and votes across trained tree members.
 class RandomForestClassifier final {
 public:
     RandomForestClassifier(
