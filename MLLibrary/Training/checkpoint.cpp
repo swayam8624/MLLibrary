@@ -1,3 +1,11 @@
+// TEACHING FILE — standalone weight snapshot, not a complete training resume.
+// model.hpp exposes the compiled cost graph and its MV_FLAG_PARAMETER nodes;
+// checkpoint.hpp declares save/load APIs. This KMLCP01 version-1 format writes
+// only parameter matrix dimensions and Float32 values in cost-program order.
+// It does NOT save optimizer moments, data-shuffle PRNG, current epoch, or step.
+// Load buffers all validated values before updating any live parameters, but
+// the binary format is host-endian and has no checksum/data-integrity hash.
+// See docs/MNIST_TRAINING_FROM_FIRST_PRINCIPLES.md for the training context.
 #include "checkpoint.hpp"
 
 #include <cstdio>
@@ -16,6 +24,9 @@ void set_error(std::string* error, const char* message)
     if (error) *error = message;
 }
 
+// Traverse the compiled cost program, preserving its parameter ordering.
+// Both write/read need the same model graph and ordering: the format stores
+// only dimensions, not parameter names or stable architecture identifiers.
 std::vector<ModelVar*> parameters(ModelContext* model)
 {
     std::vector<ModelVar*> result;
@@ -40,6 +51,11 @@ bool read_exact(FILE* file, void* data, std::size_t size)
 
 } // namespace
 
+// Serialize parameters to path + ".tmp" then rename to the requested path.
+// Validate graph/path first. Temporary-file rename reduces exposure to an
+// incomplete destination file, but is not a durable fsync-backed guarantee,
+// and existing destination/rename behavior depends on filesystem/platform.
+// Return false with an optional error string on failure.
 bool model_save_checkpoint(const ModelContext* model, const char* path, std::string* error)
 {
     if (!model || !path || !*path) { set_error(error, "Checkpoint save requires model and path."); return false; }
@@ -69,6 +85,11 @@ bool model_save_checkpoint(const ModelContext* model, const char* path, std::str
     return true;
 }
 
+// Parse magic/version/parameter count and each expected matrix shape into
+// temporary std::vector storage. Only after all values load successfully are
+// bytes copied into the arena-backed live parameter matrices. This avoids
+// partially updated weights on a malformed/truncated file. It does not
+// restore velocity/moments or validate a checksum/foreign-endian payload.
 bool model_load_checkpoint(ModelContext* model, const char* path, std::string* error)
 {
     if (!model || !path || !*path) { set_error(error, "Checkpoint load requires model and path."); return false; }
