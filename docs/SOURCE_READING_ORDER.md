@@ -6,6 +6,8 @@ MLLibrary currently has **two distinct implementation routes**, and it is import
 
 **Begin with:** [the complete MNIST training walkthrough](MNIST_TRAINING_FROM_FIRST_PRINCIPLES.md). It connects the source files by data ownership, API calls, computations, failure paths and testability.
 
+**Continue into tabular ML:** [CSV parsing, fold-safe preprocessing, classical estimators, metrics, search and AutoML](DATA_TO_AUTOML_LAB.md).
+
 ## Stage 1 — build and program entry
 
 1. [`CMakeLists.txt`](../CMakeLists.txt) — identify `MLLibraryCore`, `MLLibrary`, test and report targets. Follow the optional KairoMath/GPU configuration separately.
