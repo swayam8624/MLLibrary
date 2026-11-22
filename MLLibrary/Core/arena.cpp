@@ -5,6 +5,11 @@
 //  Created by Swayam Singal on 11/04/26.
 //
 
+// TEACHING ALLOCATOR IMPLEMENTATION: main.cpp/model.cpp/matrix.cpp share
+// this arena-backed allocation model. Reserve address space first, commit
+// pages when push_aligned crosses committed capacity, and invalidate all
+// pointers when the owner is destroyed. Temp resets a bump position but does
+// not run arbitrary C++ object destructors or independently free each object.
 #include "arena.h"
 
 #include <algorithm>
@@ -61,6 +66,9 @@ static thread_local MemArena *scratch_arenas[2] = {nullptr, nullptr};
 // MemArena implementation
 //======================
 
+// Reserve one virtual-memory region and commit its initial pages. Round sizes
+// up to OS page alignment with overflow checks; construct the arena metadata
+// in-place. On failure, return nullptr and release an unsuccessful reserve.
 MemArena *MemArena::create(u64 reserve_size, u64 commit_size)
 {
     if (reserve_size == 0 || commit_size == 0)
@@ -100,6 +108,9 @@ MemArena *MemArena::create(u64 reserve_size, u64 commit_size)
     return arena;
 }
 
+// Release the entire arena mapping. All Matrix buffers, ModelVar nodes,
+// optimizer scratch allocations and raw pointers pointing into it are now
+// invalid. This does not run destructors for individually pushed objects.
 void MemArena::destroy(MemArena *arena)
 {
     if (!arena)
@@ -107,11 +118,17 @@ void MemArena::destroy(MemArena *arena)
     plat_mem_release(arena, arena->reserve_size_);
 }
 
+// Default allocation path: align up to max_align_t and optionally zero the
+// bytes. Type-specific alignments use push_aligned through push_struct/array.
 void *MemArena::push(u64 size, bool zero)
 {
     return push_aligned(size, alignof(std::max_align_t), zero);
 }
 
+// Bump allocator: require power-of-two alignment, reject size overflow or
+// reserve exhaustion, commit additional pages if required, then advance pos_.
+// The returned address belongs to this arena; allocation failure is nullptr.
+// No mutex protects a single arena from concurrent pushes.
 void *MemArena::push_aligned(u64 size, u64 alignment, bool zero)
 {
     if (!is_power_of_two(alignment))
@@ -152,12 +169,17 @@ void *MemArena::push_aligned(u64 size, u64 alignment, bool zero)
     return out;
 }
 
+// Rewind up to the used byte count, never before the embedded MemArena
+// header. Old pointers into popped storage are logically invalid even if
+// the page remains committed and the bytes have not been overwritten yet.
 void MemArena::pop(u64 size)
 {
     const u64 used = pos_ - sizeof(MemArena);
     pos_ -= min_u64(size, used);
 }
 
+// Rewind the bump position to a prior checkpoint, clamped after the header.
+// Does not decommit pages or call destructors for reclaimed allocations.
 void MemArena::pop_to(u64 pos)
 {
     const u64 minimum = sizeof(MemArena);
@@ -167,6 +189,8 @@ void MemArena::pop_to(u64 pos)
         pos_ = pos;
 }
 
+// Reuse the full arena by resetting the bump to the metadata boundary.
+// Physical memory may stay committed; ALL previous pushed pointers invalidate.
 void MemArena::clear()
 {
     pos_ = sizeof(MemArena);
@@ -176,6 +200,8 @@ void MemArena::clear()
 // Temp
 //======================
 
+// Begin an RAII scope that remembers the allocation position; Temp::release
+// calls pop_to on scope exit. Scratch buffers remain invalid afterward.
 MemArena::Temp MemArena::begin_temp()
 {
     return Temp(this);
@@ -185,6 +211,11 @@ MemArena::Temp MemArena::begin_temp()
 // Scratch
 //======================
 
+// Choose one of TWO thread-local scratch arenas, excluding the caller's
+// explicit conflict list. The first call lazily reserves/commits its arena.
+// Caller must list overlapping live scratch regions as conflicts: same-thread
+// nested use is not automatically excluded unless declared. Temp rewinds
+// allocations when it leaves scope; it does not destroy the arena itself.
 MemArena::Temp MemArena::scratch_get(MemArena **conflicts, u32 num_conflicts)
 {
     i32 index = -1;
