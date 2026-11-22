@@ -1,3 +1,6 @@
+// TEACHING PUBLIC API: profile a typed Dataset, infer a bounded task/fold
+// policy, propose eligible estimator families and run their CV searches.
+// The resulting winner has no automatic locked final-test evaluation.
 #pragma once
 
 #include "dataset.hpp"
@@ -29,6 +32,8 @@ enum class TaskSelection : std::uint8_t {
     Regression,
 };
 
+// Limits candidate families, fold/trial/time budgets and inference rules.
+// Group/time columns guide split strategy and cannot both be active here.
 struct AutoMLConfig final {
     TaskSelection task = TaskSelection::Auto;
     SearchStrategy search_strategy = SearchStrategy::SuccessiveHalving;
@@ -57,6 +62,8 @@ struct AutoMLCandidate final {
     FoldStrategy fold_strategy = FoldStrategy::KFold;
 };
 
+// Human-auditable candidate rationale, warnings, profile and data-shape
+// assumptions; planning does not itself fit any estimator.
 struct AutoMLPlan final {
     bool success = false;
     std::string error;
@@ -76,6 +83,8 @@ struct AutoMLCandidateResult final {
     SearchResult search;
 };
 
+// Preserves planner choice, all per-family searches and selected result.
+// Interpret the winner as CV-selected and externally validate it.
 struct AutoMLResult final {
     bool success = false;
     std::string error;
@@ -88,6 +97,8 @@ struct AutoMLResult final {
     void write_json(const std::string& path) const;
 };
 
+// Read profile and current estimator support to propose task-appropriate
+// model families (binary logistic, NB, trees/forests, KNN; linear regression).
 class AutoMLPlanner final {
 public:
     explicit AutoMLPlanner(AutoMLConfig config = {});
@@ -98,6 +109,8 @@ private:
     AutoMLConfig config_;
 };
 
+// Divide the total evaluation budget among candidate families and delegate
+// to HyperparameterSearch; selection remains subject to CV ranking bias.
 class AutoMLRunner final {
 public:
     explicit AutoMLRunner(AutoMLConfig config = {});
