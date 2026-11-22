@@ -1,3 +1,7 @@
+// TEACHING CLASSICAL ALGORITHMS: Experiment/experiment.cpp wraps these
+// estimators for fit/predict/evaluation; AutoML builds candidate configs.
+// Input DenseTable is rectangular Float32 rows; fit learns from training rows
+// only. See docs/DATA_TO_AUTOML_LAB.md for leakage and split discipline.
 #include "classical.hpp"
 
 #include <cmath>
@@ -10,6 +14,8 @@
 
 namespace {
 
+// Reject empty or ragged input and return feature width. Every fit/predict
+// algorithm relies on a consistent row dimension.
 std::size_t validate_table(const DenseTable& samples)
 {
     if (samples.empty() || samples.front().empty()) throw std::invalid_argument("Samples must be non-empty with at least one feature.");
@@ -28,6 +34,8 @@ float squared_distance(const std::vector<float>& lhs, const std::vector<float>& 
 
 } // namespace
 
+// Fit per-feature population mean/std from supplied training samples only.
+// Near-constant columns use a scale of one to avoid dividing by zero.
 void StandardScaler::fit(const DenseTable& samples)
 {
     const std::size_t features = validate_table(samples);
@@ -39,6 +47,8 @@ void StandardScaler::fit(const DenseTable& samples)
     for (float& value : scale_) { value = std::sqrt(value / static_cast<float>(samples.size())); if (value <= std::numeric_limits<float>::epsilon()) value = 1.0f; }
 }
 
+// Apply the frozen training mean/scale to a copied output; never recompute
+// statistics from validation or test rows.
 DenseTable StandardScaler::transform(const DenseTable& samples) const
 {
     if (mean_.empty()) throw std::logic_error("StandardScaler must be fitted before transform.");
@@ -55,6 +65,10 @@ PCA::PCA(std::size_t components, std::size_t maxIterations, float tolerance)
     if (components == 0 || maxIterations == 0 || tolerance <= 0.0f) throw std::invalid_argument("PCA parameters are invalid.");
 }
 
+// Fit mean and covariance from training samples, then extract requested
+// directions by power iteration with successive covariance deflation.
+// Finite convergence tolerances and remaining variance constrain accuracy;
+// this is not the SVD of KairoMath or an exact eigensolver.
 void PCA::fit(const DenseTable& samples)
 {
     const std::size_t features = validate_table(samples);
@@ -99,6 +113,8 @@ void PCA::fit(const DenseTable& samples)
     }
 }
 
+// Project centered rows onto the learned component vectors. The fitted
+// means and directions must not be refitted on held-out data.
 DenseTable PCA::transform(const DenseTable& samples) const
 {
     const std::size_t features = validate_table(samples);
@@ -116,6 +132,9 @@ KMeans::KMeans(std::size_t clusters, std::size_t maxIterations, float tolerance)
     if (clusters == 0 || maxIterations == 0 || tolerance < 0.0f) throw std::invalid_argument("KMeans parameters are invalid.");
 }
 
+// Deterministic farthest-first initialization from the first sample, then
+// iterate nearest-center assignments and centroid means. An empty cluster
+// keeps its previous center. Cluster labels have no external semantic order.
 void KMeans::fit(const DenseTable& samples)
 {
     const std::size_t features = validate_table(samples);
@@ -164,6 +183,8 @@ void KMeans::fit(const DenseTable& samples)
     }
 }
 
+// Return closest fitted center by squared Euclidean distance; feature width
+// is checked by squared_distance. This is unsupervised cluster membership.
 std::size_t KMeans::predict(const std::vector<float>& sample) const
 {
     if (centers_.empty()) throw std::logic_error("KMeans must be fitted before predict.");
@@ -179,6 +200,8 @@ LogisticRegression::LogisticRegression(float learningRate, std::size_t iteration
     if (!(learningRate > 0.0f) || iterations == 0 || l2 < 0.0f) throw std::invalid_argument("LogisticRegression parameters are invalid.");
 }
 
+// Binary labels must be exactly 0/1. Full-batch gradient descent updates
+// weights and bias with optional L2 on weights (not bias). Not multiclass.
 void LogisticRegression::fit(const DenseTable& samples, const std::vector<int>& labels)
 {
     const std::size_t features = validate_table(samples);
@@ -200,6 +223,8 @@ void LogisticRegression::fit(const DenseTable& samples, const std::vector<int>& 
     }
 }
 
+// Numerically branch the logistic sigmoid by score sign to reduce overflow;
+// positive-class probability requires fitted weights and matching features.
 float LogisticRegression::predict_probability(const std::vector<float>& sample) const
 {
     if (weights_.empty() || sample.size() != weights_.size()) throw std::invalid_argument("LogisticRegression is unfitted or feature count differs.");
@@ -220,6 +245,8 @@ LinearRegression::LinearRegression(float learningRate, std::size_t iterations, f
     if (!(learningRate > 0.0f) || iterations == 0 || l2 < 0.0f) throw std::invalid_argument("LinearRegression parameters are invalid.");
 }
 
+// Train a linear predictor by full-batch gradient descent with optional
+// L2 weight penalty; check training data/target lengths before updating.
 void LinearRegression::fit(const DenseTable& samples, const std::vector<float>& targets)
 {
     const std::size_t features = validate_table(samples);
@@ -255,6 +282,8 @@ KNearestNeighbors::KNearestNeighbors(std::size_t neighbors) : neighbors_(neighbo
     if (neighbors == 0) throw std::invalid_argument("KNearestNeighbors requires at least one neighbor.");
 }
 
+// Store the caller-provided training table and labels (moved into members).
+// No parameter optimization; all training examples remain for prediction.
 void KNearestNeighbors::fit(DenseTable samples, std::vector<int> labels)
 {
     validate_table(samples);
@@ -263,6 +292,9 @@ void KNearestNeighbors::fit(DenseTable samples, std::vector<int> labels)
     labels_ = std::move(labels);
 }
 
+// Rank all stored samples by squared Euclidean distance, vote among up to
+// k nearest, and use deterministic label tie-breaking. Exact KNN prediction
+// cost scales with training size and input feature count.
 int KNearestNeighbors::predict(const std::vector<float>& sample) const
 {
     if (samples_.empty()) throw std::logic_error("KNearestNeighbors must be fitted before predict.");
@@ -285,6 +317,9 @@ GaussianNaiveBayes::GaussianNaiveBayes(float varianceSmoothing) : varianceSmooth
     if (!(varianceSmoothing > 0.0f)) throw std::invalid_argument("GaussianNaiveBayes smoothing must be positive.");
 }
 
+// Learn sorted class IDs, priors, per-feature class means and variances from
+// training rows, adding smoothing to variances to avoid zero divisions.
+// Feature independence conditional on class is a modeling assumption.
 void GaussianNaiveBayes::fit(const DenseTable& samples, const std::vector<int>& labels)
 {
     const std::size_t features = validate_table(samples);
@@ -315,6 +350,8 @@ void GaussianNaiveBayes::fit(const DenseTable& samples, const std::vector<int>& 
     }
 }
 
+// Sum Gaussian log-likelihoods plus class log-prior and choose the maximum.
+// Log space reduces products-of-small-probabilities underflow.
 int GaussianNaiveBayes::predict(const std::vector<float>& sample) const
 {
     if (classes_.empty() || sample.size() != means_.front().size()) throw std::invalid_argument("GaussianNaiveBayes is unfitted or feature count differs.");
@@ -385,6 +422,8 @@ DecisionTreeClassifier::DecisionTreeClassifier(
         throw std::invalid_argument("DecisionTreeClassifier parameters are invalid.");
 }
 
+// Build a tree of learned splits from training rows under depth, sample and
+// feature-budget constraints. Evaluate with Gini-based impurity below.
 void DecisionTreeClassifier::fit(const DenseTable& samples, const std::vector<int>& labels)
 {
     featureCount_ = validate_table(samples);
@@ -396,6 +435,9 @@ void DecisionTreeClassifier::fit(const DenseTable& samples, const std::vector<in
     build_node(samples, labels, rows, 0);
 }
 
+// Recursive tree constructor; pick a feature/threshold split, partition row
+// indices and stop at depth/leaf/purity constraints. Recursion depends on
+// training data, so test degenerate identical-feature and tiny-leaf cases.
 std::size_t DecisionTreeClassifier::build_node(
     const DenseTable& samples,
     const std::vector<int>& labels,
@@ -520,6 +562,8 @@ RandomForestClassifier::RandomForestClassifier(
         throw std::invalid_argument("RandomForestClassifier parameters are invalid.");
 }
 
+// Fit an ensemble on seeded bootstrap samples; each tree uses bounded feature
+// subsets. A seed stabilizes the sampling process, not generalization quality.
 void RandomForestClassifier::fit(const DenseTable& samples, const std::vector<int>& labels)
 {
     const std::size_t features = validate_table(samples);
@@ -555,6 +599,8 @@ void RandomForestClassifier::fit(const DenseTable& samples, const std::vector<in
     }
 }
 
+// Combine each fitted tree's class prediction by majority vote; ties follow
+// ordered label-map traversal. This is classification, not regression.
 int RandomForestClassifier::predict(const std::vector<float>& sample) const
 {
     if (forest_.empty()) throw std::logic_error("RandomForestClassifier must be fitted before predict.");
