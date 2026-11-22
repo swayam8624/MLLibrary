@@ -1,8 +1,16 @@
+// TEACHING TOOL: CSV typed inference -> Dataset -> profile -> JSON and HTML.
+// It calls Data/profiling.cpp rather than the raw MNIST Float32 reader.
+// Full-dataset profiles are descriptive; protect an untouched final test set
+// from model-selection decisions. See DATA_TO_AUTOML_LAB.md.
+
 #include "profiling.hpp"
 
 #include <cstdio>
 #include <exception>
 
+// Accept dataset, JSON and HTML output paths plus optional declared target.
+// Catch parser/IO exceptions as CLI failures instead of emitting a false
+// success summary. The source data is not uploaded to a remote service.
 int main(int argc, char** argv)
 {
     if (argc < 4 || argc > 5)
