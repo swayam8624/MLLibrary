@@ -8,6 +8,8 @@ MLLibrary currently has **two distinct implementation routes**, and it is import
 
 **Continue into tabular ML:** [CSV parsing, fold-safe preprocessing, classical estimators, metrics, search and AutoML](DATA_TO_AUTOML_LAB.md).
 
+**Study the tests:** [CTest targets, source-linked assertions and evidence gaps](TEST_EVIDENCE_AND_LEARNING_MAP.md).
+
 ## Stage 1 — build and program entry
 
 1. [`CMakeLists.txt`](../CMakeLists.txt) — identify `MLLibraryCore`, `MLLibrary`, test and report targets. Follow the optional KairoMath/GPU configuration separately.
