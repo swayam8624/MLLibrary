@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: Tests typed CSV parser, schema errors, stable fingerprints, split properties and raw Float32 matrix sizing.
+// These are source-visible assertions, not proof this test was executed on
+// the current commit. See docs/DATA_TO_AUTOML_LAB.md for corresponding theory.
+
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -47,6 +51,7 @@ DatasetSchema customer_schema()
     };
 }
 
+// TEACHING TEST: Checks quoting and typed values, then confirms the content-derived fingerprint contract.
 bool test_typed_csv_parsing_and_fingerprint()
 {
     const std::filesystem::path path = temporary_path("mllibrary-dataset-parse.csv");
@@ -87,6 +92,7 @@ bool test_typed_csv_parsing_and_fingerprint()
     return passed;
 }
 
+// TEACHING TEST: Verifies parse failures preserve location context for debugging malformed data.
 bool test_parse_errors_include_row_and_column()
 {
     const std::filesystem::path path = temporary_path("mllibrary-dataset-invalid.csv");
@@ -112,6 +118,7 @@ bool test_parse_errors_include_row_and_column()
     return passed;
 }
 
+// TEACHING TEST: Ensures a declared schema cannot silently accept a different CSV header.
 bool test_header_mismatch_is_rejected()
 {
     const std::filesystem::path path = temporary_path("mllibrary-dataset-header.csv");
@@ -157,6 +164,7 @@ Dataset make_split_dataset()
     return Dataset(std::move(schema), std::move(rows), "memory://split-fixture");
 }
 
+// TEACHING TEST: Checks seeded partition reproducibility, row counts and split membership.
 bool test_deterministic_dataset_split()
 {
     const Dataset dataset = make_split_dataset();
@@ -201,6 +209,7 @@ bool test_deterministic_dataset_split()
         && first.test.source() == "memory://split-fixture#test";
 }
 
+// TEACHING TEST: Rejects invalid train/validation/test fractions rather than assuming a usable evaluation.
 bool test_invalid_split_is_rejected()
 {
     try
@@ -220,6 +229,7 @@ bool test_invalid_split_is_rejected()
     return false;
 }
 
+// TEACHING TEST: Checks the distinct legacy raw Float32 ingestion path and exact byte-length contract.
 bool test_raw_matrix_loader_requires_exact_size()
 {
     const std::filesystem::path exact_path = temporary_path("mllibrary-matrix-exact.bin");
