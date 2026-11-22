@@ -14,6 +14,9 @@
 // Creation
 //======================
 
+// API / ownership: construct the graph registry inside MemArena. The caller
+// owns the arena; all ModelVar pointers and compiled programs borrow its
+// lifetime. main.cpp creates this before create_mnist_model().
 ModelContext *model_create(MemArena *arena)
 {
     return push_struct<ModelContext>(arena);
@@ -23,6 +26,10 @@ ModelContext *model_create(MemArena *arena)
 // Variable creation
 //======================
 
+// API / memory: allocate one graph node and its value matrix, optionally a
+// gradient matrix when MV_FLAG_REQUIRES_GRAD is present. The role flags also
+// register the input/output/target/cost in ModelContext; a failure returns
+// nullptr and previously bumped arena allocations are not individually freed.
 ModelVar *mv_create(
     MemArena *arena, ModelContext *model,
     u32 rows, u32 cols, u32 flags)
@@ -70,6 +77,9 @@ ModelVar *mv_create(
 // Internal helpers
 //======================
 
+// Internal graph builder: unary nodes retain one input pointer and inherit
+// its differentiability, but do not compute any values yet. model_prog_compute
+// executes the operation later, after graph compilation.
 static ModelVar *mv_unary(
     MemArena *arena, ModelContext *model,
     ModelVar *input, u32 flags, ModelVarOp op)
@@ -96,6 +106,9 @@ static ModelVar *mv_unary(
     return out;
 }
 
+// Internal graph builder: retain both operand nodes; automatic differentiation
+// is required when either operand needs gradients. Callers validate operation-
+// specific shapes before allocating this result node.
 static ModelVar *mv_binary(
     MemArena *arena, ModelContext *model,
     ModelVar *a, ModelVar *b,
@@ -125,6 +138,8 @@ static ModelVar *mv_binary(
 // Operations
 //======================
 
+// ReLU graph node: same matrix shape as input. The eventual backward pass
+// calls mat_relu_add_grad, accumulating only where input was positive.
 ModelVar *mv_relu(
     MemArena *arena, ModelContext *model,
     ModelVar *input, u32 flags)
@@ -132,6 +147,9 @@ ModelVar *mv_relu(
     return mv_unary(arena, model, input, flags, MV_OP_RELU);
 }
 
+// Softmax graph node: the compact runtime normalizes the full Matrix, not
+// independent batches/rows. For a logits-level fused loss see the separate
+// mv_softmax_cross_entropy graph node.
 ModelVar *mv_softmax(
     MemArena *arena, ModelContext *model,
     ModelVar *input, u32 flags)
@@ -139,6 +157,9 @@ ModelVar *mv_softmax(
     return mv_unary(arena, model, input, flags, MV_OP_SOFTMAX);
 }
 
+// Elementwise addition: both input matrices must have identical dimensions;
+// returns nullptr on mismatch, no implicit broadcasting. Backprop must add
+// the incoming gradient to both parents (important for residual branches).
 ModelVar *mv_add(
     MemArena *arena, ModelContext *model,
     ModelVar *a, ModelVar *b, u32 flags)
@@ -156,6 +177,8 @@ ModelVar *mv_add(
         flags, MV_OP_ADD);
 }
 
+// Elementwise subtraction: same-shape input contract. In reverse mode the
+// left parent receives +gradient and the right parent receives -gradient.
 ModelVar *mv_sub(
     MemArena *arena, ModelContext *model,
     ModelVar *a, ModelVar *b, u32 flags)
@@ -173,6 +196,9 @@ ModelVar *mv_sub(
         flags, MV_OP_SUB);
 }
 
+// Matrix multiplication node: [M,K] times [K,N] produces [M,N]. Forward
+// delegates to matrix.cpp::mat_mul; backward computes dA=dC*B^T and
+// dB=A^T*dC, accumulating into existing gradient matrices.
 ModelVar *mv_matmul(
     MemArena *arena, ModelContext *model,
     ModelVar *a, ModelVar *b, u32 flags)
@@ -189,6 +215,9 @@ ModelVar *mv_matmul(
         flags, MV_OP_MATMUL);
 }
 
+// Probability-level cross-entropy node: inputs have identical shape and the
+// result retains that shape; main.cpp sums its elements for the sample cost.
+// The target is typically not differentiable, but probabilities are.
 ModelVar *mv_cross_entropy(
     MemArena *arena, ModelContext *model,
     ModelVar *p, ModelVar *q, u32 flags)
@@ -206,6 +235,9 @@ ModelVar *mv_cross_entropy(
         flags, MV_OP_CROSS_ENTROPY);
 }
 
+// Alternative fused logits-level loss: targets and logits have equal shapes;
+// this builder returns a scalar [1,1] loss node instead of an elementwise
+// loss matrix. The current MNIST main uses the separate softmax + CE path.
 ModelVar *mv_softmax_cross_entropy(
     MemArena *arena, ModelContext *model,
     ModelVar *targets, ModelVar *logits, u32 flags)
@@ -227,6 +259,11 @@ ModelVar *mv_softmax_cross_entropy(
 // Program creation (topological sort)
 //======================
 
+// Compile reachable graph nodes into an arena-owned dependency-first program
+// using an explicit stack and visited/index bookkeeping. Forward execution
+// assumes parents precede consumers; reverse-mode walks this order backwards.
+// This routine returns an empty program on invalid input or allocation/stack
+// failure, so clients must validate successful compilation before training.
 ModelProgram model_prog_create(
     MemArena *arena, ModelContext *model, ModelVar *out_var)
 {
@@ -300,6 +337,10 @@ ModelProgram model_prog_create(
 // Forward
 //======================
 
+// Forward interpreter: each ModelVar::op dispatches to scalar matrix.cpp
+// kernels, writing the node's preallocated value buffer. Inputs and params
+// are already populated by main.cpp/training.cpp. This is NOT a KairoSIMD
+// dispatcher, and this void API does not propagate matrix helper bool errors.
 void model_prog_compute(ModelProgram *prog)
 {
     if (!prog || !prog->vars)
@@ -355,6 +396,12 @@ void model_prog_compute(ModelProgram *prog)
 // Backward
 //======================
 
+// Reverse-mode autodiff: clear nonparameter intermediates, seed the final
+// scalar/elementwise loss gradient with 1, then visit nodes in reverse order.
+// Parameter gradients are deliberately NOT cleared here: training.cpp clears
+// all gradients once per batch and calls this per sample to accumulate them.
+// mat_mul(..., zero_out=false) adds matrix contributions; add/sub and nonlinear
+// gradient helpers likewise accumulate through shared/residual graph edges.
 void model_prog_compute_grads(ModelProgram *prog)
 {
     if (!prog || !prog->vars || prog->size == 0)
@@ -444,6 +491,9 @@ void model_prog_compute_grads(ModelProgram *prog)
 // Compile + forward
 //======================
 
+// Build two independent reachable execution lists: one ending at the model
+// output for inference, another ending at cost for training and gradients.
+// training.cpp requires a nonempty cost_prog; callers should check it.
 void model_compile(MemArena *arena, ModelContext *model)
 {
     if (!arena || !model)
@@ -460,6 +510,8 @@ void model_compile(MemArena *arena, ModelContext *model)
     }
 }
 
+// Inference facade: execute the compiled output program using current input
+// and parameter buffers. It does not update gradients or train weights.
 void model_feedforward(ModelContext *model)
 {
     if (!model)
