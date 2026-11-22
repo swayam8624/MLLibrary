@@ -1,3 +1,7 @@
+// TEACHING CONTRACT API: dtype, logical shape, strides, ownership and
+// device/algorithm capability metadata used at model/backend boundaries.
+// Enums describe possible choices; they do not prove that a GPU backend or
+// kernel exists on the current host. See OBSERVABILITY_AND_BENCHMARK_LAB.
 #pragma once
 
 #include <cstddef>
@@ -79,6 +83,9 @@ namespace mllibrary::contracts
 
     /// Canonical logical and physical Tensor description shared by model,
     /// dataset, serialization, benchmark, and backend boundaries.
+    // Logical shape and physical storage contract. validate/element_count/
+    // byte_size reject overflow; contiguous checks effective dense strides.
+    // Descriptor validation does not allocate the backing memory.
     struct TensorDescriptor final
     {
         std::vector<std::size_t> shape;
@@ -117,6 +124,8 @@ namespace mllibrary::contracts
         bool supportsTraining = false;
     };
 
+    // Store named capabilities and select by task/dtype/device/shape budget.
+    // Matching metadata is not a promise of successful native execution.
     class ModelCapabilityRegistry final
     {
     public:
@@ -135,6 +144,8 @@ namespace mllibrary::contracts
         std::vector<ModelCapability> capabilities_;
     };
 
+    // Metadata contract for sample and optional label tensors. Version and
+    // shape checks do not verify the actual bytes on disk.
     struct DatasetFormat final
     {
         static constexpr std::uint32_t CurrentVersion = 1u;
@@ -147,6 +158,8 @@ namespace mllibrary::contracts
         void validate() const;
     };
 
+    // Format feature flags are declarative. In particular classic KMLCP01
+    // files serialize weights only, regardless of broader metadata concepts.
     struct CheckpointFormat final
     {
         static constexpr std::uint32_t CurrentVersion = 1u;
