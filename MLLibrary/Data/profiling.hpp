@@ -1,3 +1,6 @@
+// TEACHING PUBLIC API: inspect typed data and optional bounded CSV schema
+// inference; AutoMLPlanner uses profiles to choose bounded candidate families.
+// Profile warnings are descriptive, not fit or test outcomes.
 #pragma once
 #include "dataset.hpp"
 #include <cstddef>
@@ -7,6 +10,8 @@
 
 namespace mllibrary::data {
 
+// Type heuristics inspect up to maximum_rows, not every value. Numeric IDs,
+// class encodings and categorical cardinality require domain-level review.
 struct SchemaInferenceOptions final {
     CsvReadOptions csv{};
     std::size_t maximum_rows = 10000;
@@ -48,6 +53,9 @@ struct DatasetProfileOptions final {
     bool detect_duplicate_rows = true;
 };
 
+// Observations, source fingerprint, missing/duplicate summaries and target
+// class distribution. This is not a model score or cryptographic integrity
+// signature, and may use the entire Dataset passed to profile_dataset().
 struct DatasetProfile final {
     std::string source;
     std::string fingerprint;
@@ -60,6 +68,8 @@ struct DatasetProfile final {
     std::vector<std::string> warnings;
 };
 
+// Suggest types from bounded CSV sampling; the strict Dataset::from_csv
+// conversion validates the resulting schema against actual records.
 [[nodiscard]] DatasetSchema infer_csv_schema(
     const std::string& path,
     const SchemaInferenceOptions& options = {});
@@ -68,6 +78,8 @@ struct DatasetProfile final {
     const std::string& path,
     const SchemaInferenceOptions& options = {});
 
+// Compute observed schema/row statistics; when choosing models, reserve
+// untouched final-test data outside the selection/planning process.
 [[nodiscard]] DatasetProfile profile_dataset(
     const Dataset& dataset,
     const DatasetProfileOptions& options = {});
