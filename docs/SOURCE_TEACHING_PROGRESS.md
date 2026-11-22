@@ -48,6 +48,21 @@ These comments are grounded in the file implementation and cross-file calls. The
 
 **Note:** comments and test names are not test-run evidence. Test targets were inspected in [`CMakeLists.txt`](../CMakeLists.txt) but this pass did not compile or execute them.
 
+## Observability and contract-layer continuation
+
+**Worked lesson:** [training charts, raw/typed dataset reports, benchmark methodology and tensor capability contracts](OBSERVABILITY_AND_BENCHMARK_LAB.md).
+
+| File | Added function/stage annotations | Role |
+| --- | ---: | --- |
+| [`Visual/training_report.cpp`](../MLLibrary/Visual/training_report.cpp) | 4 | Epoch CSV -> static HTML time-series |
+| [`Visual/dataset_report.cpp`](../MLLibrary/Visual/dataset_report.cpp) | 4 | Raw Float32 image/label validation, stats and bounded sample grid |
+| [`Visual/dataset_inspector.cpp`](../MLLibrary/Visual/dataset_inspector.cpp) | 1 | Typed CSV -> profile -> JSON/HTML CLI |
+| [`Benchmark/benchmark.cpp`](../MLLibrary/Benchmark/benchmark.cpp) | 3 | Versioned measurement schema, validation and JSON writer |
+| [`Benchmark/matrix_benchmark.cpp`](../MLLibrary/Benchmark/matrix_benchmark.cpp) | 5 | Warmup, scalar GEMM timing, p50/p95, process RSS and double-reference error |
+| [`Contracts/runtime_contracts.cpp`](../MLLibrary/Contracts/runtime_contracts.cpp) | 10 | Dtype, shape/stride, device ownership, capability registry, format metadata |
+
+The paired public headers [`Benchmark/benchmark.hpp`](../MLLibrary/Benchmark/benchmark.hpp) and [`Contracts/runtime_contracts.hpp`](../MLLibrary/Contracts/runtime_contracts.hpp) contain nine additional documentation sections. These changes clarify report lineage, kernel correctness versus speed and descriptor metadata versus actual backend execution. Benchmarks, HTML reports and native hardware paths were **not** run in this pass.
+
 ## Remaining targeted code study
 
 **Source and headers:** [`Core/prng.h`](../MLLibrary/Core/prng.h), [`Math/matrix.hpp`](../MLLibrary/Math/matrix.hpp), [`Model/model.hpp`](../MLLibrary/Model/model.hpp), [`Training/training.hpp`](../MLLibrary/Training/training.hpp) and [`Training/checkpoint.hpp`](../MLLibrary/Training/checkpoint.hpp) need API-by-API contract review to align all declarations with their implementations. Platform-specific allocation adapters need explicit native error and decommit checks.
@@ -56,7 +71,7 @@ These comments are grounded in the file implementation and cross-file calls. The
 
 **Classical ML and experiment design:** the primary implementation methods have new comments; remaining work is to connect their public headers and tests to exact error/metric contracts and to validate split leakage and optimizer/model-selection evidence on a real host.
 
-**Visualization/benchmark:** [`MLLibrary/Visual/`](../MLLibrary/Visual), [`MLLibrary/Benchmark/`](../MLLibrary/Benchmark). Teach metrics lineage, numerical error, benchmark validity and report generation.
+**Visualization/benchmark and contracts:** primary reporting, benchmark and runtime-contract implementations now have inline teaching comments and an [observability laboratory](OBSERVABILITY_AND_BENCHMARK_LAB.md). Still needed: actual generated-HTML inspection, performance runs on pinned hosts, profiler traces and failure-path tests.
 
 **Optional module integrations:** [`MLLibrary/TensorRuntime.cppm`](../MLLibrary/TensorRuntime.cppm), [`MLLibrary/TensorGPURuntime.cppm`](../MLLibrary/TensorGPURuntime.cppm), [`ModuleInterfaces/`](../ModuleInterfaces). Compare actual enabled CMake module targets with merely declared interfaces before claiming a working module path.
 
