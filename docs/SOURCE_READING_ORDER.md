@@ -10,6 +10,8 @@ MLLibrary currently has **two distinct implementation routes**, and it is import
 
 **Study the tests:** [CTest targets, source-linked assertions and evidence gaps](TEST_EVIDENCE_AND_LEARNING_MAP.md).
 
+**Study reporting and performance contracts:** [Training/dataset reports, scalar GEMM benchmark and capability metadata](OBSERVABILITY_AND_BENCHMARK_LAB.md).
+
 ## Stage 1 — build and program entry
 
 1. [`CMakeLists.txt`](../CMakeLists.txt) — identify `MLLibraryCore`, `MLLibrary`, test and report targets. Follow the optional KairoMath/GPU configuration separately.
