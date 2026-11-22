@@ -24,6 +24,9 @@ b32   plat_mem_release(void* ptr, u64 size);
 // Arena Allocator
 //======================
 
+// Ownership contract: MemArena reserves OS virtual memory and provides
+// aligned bump allocations. None of its returned raw pointers owns itself;
+// one arena destroy invalidates all descendants. Mutation is not thread-safe.
 class MemArena {
 public:
     class Temp;
@@ -64,6 +67,9 @@ private:
 // Temp Arena (RAII)
 //======================
 
+// RAII rewind token: remembers one arena position, is move-only, and calls
+// pop_to in release()/destructor. Never retain pushed pointers beyond this
+// scope. Returning temporary pointer-backed objects would dangle.
 class MemArena::Temp {
 public:
     Temp(MemArena* arena)
@@ -109,6 +115,9 @@ private:
 //======================
 
 template <typename T>
+// Typed raw-storage helper; zeroing bytes is not a substitute for running
+// a nontrivial T constructor. Use only with types whose lifetime/initialization
+// requirements are satisfied by this allocation strategy.
 inline T* push_struct(MemArena* arena, bool zero = true) {
     if (!arena) {
         return nullptr;
@@ -117,6 +126,8 @@ inline T* push_struct(MemArena* arena, bool zero = true) {
 }
 
 template <typename T>
+// Typed bulk allocation with u64 multiplication-overflow guard. There is no
+// individual free or automatic T destructor: lifetime belongs to MemArena.
 inline T* push_array(MemArena* arena, u64 count, bool zero = true) {
     if (!arena || count > std::numeric_limits<u64>::max() / sizeof(T)) {
         return nullptr;
