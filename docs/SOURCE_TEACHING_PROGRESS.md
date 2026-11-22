@@ -19,15 +19,34 @@ The [source reading order](SOURCE_READING_ORDER.md) is the navigation entrypoint
 | [`MLLibrary/Core/arena.cpp`](../MLLibrary/Core/arena.cpp) | reserve/commit, alignment, bump/rewind and conflict-aware thread-local scratch | 10 function/stage annotations |
 | [`MLLibrary/Core/prng.cpp`](../MLLibrary/Core/prng.cpp) | seed/state, PCG-style integer/Float32 outputs, process-global wrappers | 7 functions/stages |
 
+## New coverage: tabular data, evaluation and model selection
+
+**Worked guide:** [From CSV rows through fold-safe preprocessing to AutoML](DATA_TO_AUTOML_LAB.md). It maps every layer to the actual C++23 source and includes a documented client example, leakage exercises and supported-model boundaries.
+
+| File | Added function or stage comments | Teaching emphasis |
+| --- | ---: | --- |
+| [`Data/data.cpp`](../MLLibrary/Data/data.cpp) | 4 | raw Float32 loader, terminal sample rendering, one-hot labels and silent invalid-ID handling |
+| [`Data/dataset.cpp`](../MLLibrary/Data/dataset.cpp) | 11 | CSV state machine, typed schema, errors, fingerprint and split ownership |
+| [`Data/profiling.cpp`](../MLLibrary/Data/profiling.cpp) | 9 | schema heuristics, missingness, targets and reporting |
+| [`Preprocessing/pipeline.cpp`](../MLLibrary/Preprocessing/pipeline.cpp) | 10 | train-only fitting, frozen transforms, categorical unknowns and saved state |
+| [`Classical/classical.cpp`](../MLLibrary/Classical/classical.cpp) | 19 | scaling, PCA, KMeans, regression, KNN, Naive Bayes, trees and forests |
+| [`Evaluation/metrics.cpp`](../MLLibrary/Evaluation/metrics.cpp) | 7 | classification/regression metrics, ROC-AUC, undefined cases |
+| [`Evaluation/cross_validation.cpp`](../MLLibrary/Evaluation/cross_validation.cpp) | 12 | KFold, stratification, group/time splits, per-fold leakage barriers |
+| [`Experiment/experiment.cpp`](../MLLibrary/Experiment/experiment.cpp) | 12 | estimator factory, feature conversion, fitting and prediction evidence |
+| [`Search/search.cpp`](../MLLibrary/Search/search.cpp) | 14 | discrete candidates, trial budget, successive halving and ranking |
+| [`AutoML/automl.cpp`](../MLLibrary/AutoML/automl.cpp) | 14 | task inference, family constraints, bounded planning and orchestration |
+
+These are **112 targeted teaching comments/sections** across ten first-party implementation files. They explain the dominant contracts but do not certify every branch of those files. The code edits are comments only; build, CTest and sample execution have not been performed in this wave.
+
 These comments are grounded in the file implementation and cross-file calls. They do **not** certify that every branch, error path, platform function, or test within these files is complete.
 
 ## Remaining targeted code study
 
 **Source and headers:** [`Core/prng.h`](../MLLibrary/Core/prng.h), [`Math/matrix.hpp`](../MLLibrary/Math/matrix.hpp), [`Model/model.hpp`](../MLLibrary/Model/model.hpp), [`Training/training.hpp`](../MLLibrary/Training/training.hpp) and [`Training/checkpoint.hpp`](../MLLibrary/Training/checkpoint.hpp) need API-by-API contract review to align all declarations with their implementations. Platform-specific allocation adapters need explicit native error and decommit checks.
 
-**Data and preprocessing:** [`Data/data.cpp`](../MLLibrary/Data/data.cpp), [`Data/dataset.cpp`](../MLLibrary/Data/dataset.cpp), [`Data/profiling.cpp`](../MLLibrary/Data/profiling.cpp), [`Preprocessing/pipeline.cpp`](../MLLibrary/Preprocessing/pipeline.cpp). Teach the lifetime and provenance of raw dataset buffers and transformations.
+**Data and preprocessing:** targeted source-level annotations and the worked data-to-AutoML lab are now present. Still required: a declaration/implementation contract audit of their headers, expanded parser and held-out-vocabulary tests, and real CI/compiler verification.
 
-**Classical ML and experiment design:** [`Classical/classical.cpp`](../MLLibrary/Classical/classical.cpp), [`Evaluation/metrics.cpp`](../MLLibrary/Evaluation/metrics.cpp), [`Evaluation/cross_validation.cpp`](../MLLibrary/Evaluation/cross_validation.cpp), [`Experiment/experiment.cpp`](../MLLibrary/Experiment/experiment.cpp), [`Search/search.cpp`](../MLLibrary/Search/search.cpp), [`AutoML/automl.cpp`](../MLLibrary/AutoML/automl.cpp). Explain fit/predict contracts, data leakage, split reproducibility and search selection.
+**Classical ML and experiment design:** the primary implementation methods have new comments; remaining work is to connect their public headers and tests to exact error/metric contracts and to validate split leakage and optimizer/model-selection evidence on a real host.
 
 **Visualization/benchmark:** [`MLLibrary/Visual/`](../MLLibrary/Visual), [`MLLibrary/Benchmark/`](../MLLibrary/Benchmark). Teach metrics lineage, numerical error, benchmark validity and report generation.
 
@@ -42,6 +61,9 @@ These comments are grounded in the file implementation and cross-file calls. The
 - An unsuccessful checkpoint write can skip `fclose` due to short-circuit boolean evaluation; requires a separate code fix and fault-injection test.
 - A graph forward interpreter returning `void` does not surface underlying matrix-kernel boolean failures as structured exceptions. Validate shapes before execution.
 - The classic MNIST training binary is not automatically KairoScheduler/KairoSIMD/Metal enabled.
+- `Data/data.cpp::one_hot_encode` can silently skip unsupported class IDs; labels should be validated before conversion.
+- `AutoMLRunner` selects models using cross-validation rather than a locked independent final test; source guide [DATA_TO_AUTOML_LAB.md](DATA_TO_AUTOML_LAB.md) documents that distinction.
+- Schema inference and AutoML planning may inspect full provided-dataset distributional statistics; hold the final test partition outside the planning process.
 
 ## How to extend this ledger
 
