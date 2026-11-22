@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: End-to-end scalar numerical contracts, model graph behavior, classical baseline and weight checkpoint round-trip.
+// The source asserts these contracts; actual execution/host evidence must be
+// captured separately before marking the current build as verified.
+
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -19,6 +23,7 @@ bool nearly_equal(f32 a, f32 b, f32 tolerance = 1e-5f)
     return std::fabs(a - b) <= tolerance;
 }
 
+// TEACHING TEST: Checks the probability-level CE forward/backward chain with fixed hand-computed logits.
 bool test_cross_entropy_composes_through_softmax()
 {
     MemArena *arena = MemArena::create(MiB(8), KiB(64));
@@ -51,6 +56,7 @@ bool test_cross_entropy_composes_through_softmax()
     return passed;
 }
 
+// TEACHING TEST: Checks transpose flags and additive gradient matrix multiply instead of accidental overwrites.
 bool test_matmul_transpose_accumulates()
 {
     MemArena *arena = MemArena::create(MiB(8), KiB(64));
@@ -72,6 +78,7 @@ bool test_matmul_transpose_accumulates()
     return passed;
 }
 
+// TEACHING TEST: Ensures each supported optimizer can change a trainable parameter in a tiny graph.
 bool test_each_optimizer_updates_a_trainable_logit()
 {
     const ModelOptimizerKind optimizers[] = { MODEL_OPTIMIZER_SGD, MODEL_OPTIMIZER_MOMENTUM_SGD,
@@ -105,6 +112,7 @@ bool test_each_optimizer_updates_a_trainable_logit()
     return true;
 }
 
+// TEACHING TEST: Exercises basic scaler/estimator behavior without treating toy-data score as generalization.
 bool test_classical_preprocessing_and_learners()
 {
     const DenseTable samples = { { -2.0f, -1.0f }, { -1.0f, -2.0f }, { 1.0f, 2.0f }, { 2.0f, 1.0f } };
@@ -166,6 +174,7 @@ bool test_classical_preprocessing_and_learners()
     return true;
 }
 
+// TEACHING TEST: Checks the legacy KMLCP01 parameter-only save/load path, not exact optimizer resumption.
 bool test_parameter_checkpoint_round_trip()
 {
     const std::filesystem::path path = "/tmp/mllibrary-checkpoint-test.bin";
@@ -190,6 +199,7 @@ bool test_parameter_checkpoint_round_trip()
     return passed;
 }
 
+// TEACHING TEST: Checks public capability/contract reporting against the selected bounded runtime.
 bool test_runtime_contracts_and_capability_selection()
 {
     using namespace mllibrary::contracts;
