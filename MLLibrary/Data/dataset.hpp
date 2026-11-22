@@ -1,3 +1,7 @@
+// TEACHING PUBLIC API: typed tabular rows, explicit schemas, parsing errors,
+// row selections and reproducible splits. Implemented by Data/dataset.cpp;
+// profiling.cpp reads these values and preprocessing/pipeline.cpp fits them.
+// See docs/DATA_TO_AUTOML_LAB.md for the end-to-end evaluation flow.
 #pragma once
 
 #include <cctype>
@@ -69,6 +73,8 @@ private:
     std::size_t column_;
 };
 
+// A missing entry, numeric value, boolean or text. This is owning typed
+// storage; unlike an arena-backed Matrix, a Dataset manages its own rows.
 using DataValue = std::variant<std::monostate, double, bool, std::string>;
 using DataRow = std::vector<DataValue>;
 
@@ -89,6 +95,9 @@ struct DatasetSplitOptions final {
 
 struct DatasetSplit;
 
+// Own schema and rows. from_csv validates declared types and physical CSV
+// records. select_rows copies in supplied order and allows repeated indices;
+// callers that need disjoint CV folds must construct them explicitly.
 class Dataset final {
 public:
     Dataset() = default;
@@ -126,6 +135,9 @@ public:
     // bootstrap and resampling workflows.
     [[nodiscard]] Dataset select_rows(
         const std::vector<std::size_t>& indices) const;
+    // Seeded ordinary train/validation/test split. This method does not
+    // group-lock, stratify, or impose temporal order; use CrossValidator for
+    // specialized leakage-safe fold construction.
     [[nodiscard]] DatasetSplit split(const DatasetSplitOptions& options = {}) const;
 
 private:
