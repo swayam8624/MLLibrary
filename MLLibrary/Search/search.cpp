@@ -1,3 +1,7 @@
+// TEACHING SEARCH: enumerate bounded discrete hyperparameters, evaluate via
+// CrossValidator (which fits preprocessing per training fold), retain trials,
+// choose score direction and report errors. AutoML delegates here.
+// See docs/DATA_TO_AUTOML_LAB.md for model-selection bias.
 #include "search.hpp"
 
 #include <algorithm>
@@ -70,6 +74,8 @@ std::uint32_t checked_seed(double value)
     return static_cast<std::uint32_t>(value);
 }
 
+// Depth-first Cartesian product enumeration of hyperparameter values;
+// make_candidates checks cardinality before building the candidate vector.
 void enumerate_candidates(
     const SearchSpace& space,
     std::size_t dimension,
@@ -91,6 +97,8 @@ void enumerate_candidates(
     }
 }
 
+// Bound combinations to one million; grid enumerates in stable order while
+// random search seeded-shuffles then truncates to the trial budget.
 std::vector<Candidate> make_candidates(
     const SearchConfig& config)
 {
@@ -120,6 +128,8 @@ bool score_better(double left, double right, bool maximize)
     return maximize ? left > right : left < right;
 }
 
+// Convert one candidate to evaluator settings and run cross-validation;
+// preserve completed/failed state and per-fold evidence, not only a score.
 SearchTrial evaluate_candidate(
     const Dataset& dataset,
     const SearchConfig& config,
@@ -161,6 +171,8 @@ SearchTrial evaluate_candidate(
     return trial;
 }
 
+// Select only completed trials using the correct maximize/minimize metric
+// direction; no successful trial means no certified winner.
 void select_best(SearchResult& result)
 {
     const SearchTrial* best = nullptr;
@@ -192,6 +204,8 @@ void select_best(SearchResult& result)
     }
 }
 
+// Budget checked BETWEEN trials/rounds; it does not forcibly interrupt a
+// long in-flight estimator fit or cross-validation fold.
 bool time_budget_reached(
     const SearchConfig& config,
     const Clock::time_point& started)
@@ -203,6 +217,8 @@ bool time_budget_reached(
 
 } // namespace
 
+// Reject repeated/empty dimensions and non-finite or invalid values before
+// scheduling costly model fitting.
 void SearchSpace::validate() const
 {
     std::set<Hyperparameter> seen;
@@ -233,6 +249,7 @@ void SearchSpace::validate() const
     }
 }
 
+// Safe product of discrete candidate counts, including overflow detection.
 std::size_t SearchSpace::cardinality() const
 {
     validate();
@@ -246,6 +263,8 @@ std::size_t SearchSpace::cardinality() const
     return result;
 }
 
+// Borrow selected trial from this result; invalidated when result is moved
+// or destroyed. Selection references a trial ID, not a raw file artifact.
 const SearchTrial* SearchResult::best_trial() const noexcept
 {
     if (!best_trial_id)
@@ -258,6 +277,8 @@ const SearchTrial* SearchResult::best_trial() const noexcept
     return nullptr;
 }
 
+// Serialize every attempted/pruned/failed trial for inspection, alongside
+// the selected primary metric and winner metadata.
 std::string SearchResult::to_json() const
 {
     std::ostringstream output;
@@ -319,11 +340,16 @@ void SearchResult::write_json(const std::string& path) const
         throw std::runtime_error("Failed while writing hyperparameter-search report '" + path + "'.");
 }
 
+// Own search space, strategy, validation configuration and budget.
 HyperparameterSearch::HyperparameterSearch(SearchConfig config)
     : config_(std::move(config))
 {
 }
 
+// Grid/random candidate evaluation or fold-budget successive halving:
+// promote survivors using their score and progressively larger fold counts.
+// A selected CV winner does not itself provide unbiased final-test evidence;
+// reserve locked held-out data or use nested validation.
 SearchResult HyperparameterSearch::run(const Dataset& dataset) const
 {
     SearchResult result;
@@ -464,6 +490,8 @@ SearchResult HyperparameterSearch::run(const Dataset& dataset) const
     return result;
 }
 
+// Convert validated discrete hyperparameter settings to strongly typed
+// EstimatorConfig before CrossValidator builds its fold-specific model.
 EstimatorConfig apply_hyperparameters(
     EstimatorConfig base,
     const std::vector<AppliedHyperparameter>& parameters)
@@ -517,6 +545,8 @@ EstimatorConfig apply_hyperparameters(
     return base;
 }
 
+// Metric direction controls candidate ranking; higher is not uniformly
+// better for classification and regression metrics.
 bool metric_is_maximized(PrimaryMetric metric) noexcept
 {
     switch (metric)
