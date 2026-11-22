@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: Connects bounded schema inference to real typed ingestion and dataset diagnostic reports.
+// These are source-visible assertions, not proof this test was executed on
+// the current commit. See docs/DATA_TO_AUTOML_LAB.md for corresponding theory.
+
 #include "profiling.hpp"
 
 #include <cmath>
@@ -21,6 +25,7 @@ void write_file(const std::filesystem::path& path, const std::string& content)
     output << content;
 }
 
+// TEACHING TEST: Checks inferred numeric/bool/categorical/text/nullable columns and the declared target.
 bool test_schema_inference_and_loading()
 {
     const auto path = temp_path("mllibrary-profile-inference.csv");
@@ -53,6 +58,7 @@ bool test_schema_inference_and_loading()
     return schema_ok && loaded;
 }
 
+// TEACHING TEST: Checks profile summaries and report artifacts against known source values.
 bool test_profile_statistics_and_reports()
 {
     DatasetSchema schema{{
@@ -101,6 +107,7 @@ bool test_profile_statistics_and_reports()
     return files_ok;
 }
 
+// TEACHING TEST: Verifies that a requested but missing target cannot be silently inferred.
 bool test_missing_target_is_rejected()
 {
     const auto path = temp_path("mllibrary-profile-missing-target.csv");
