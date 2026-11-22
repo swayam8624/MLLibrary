@@ -1,3 +1,9 @@
+// TEACHING CONTRACTS: shared Tensor shape/layout/device and model capability
+// validation for the classic ML runtime and optional module adapter.
+// A DataType/DeviceType enum advertises a contract, not an implemented
+// accelerated backend; actual availability must be checked before dispatch.
+// See docs/OBSERVABILITY_AND_BENCHMARK_LAB.md.
+
 #if !defined(MLLIB_CONTRACTS_MODULE_BODY)
 #include "runtime_contracts.hpp"
 #include <algorithm>
@@ -12,6 +18,8 @@ namespace mllibrary::contracts
     {
     }
 
+    // Map supported dtype descriptors to element byte width; unfamiliar
+    // enumerators raise ContractError rather than an unsafe zero size.
     std::size_t data_type_size(DataType type)
     {
         switch (type)
@@ -57,6 +65,8 @@ namespace mllibrary::contracts
         return "unknown";
     }
 
+    // Validate nonempty nonzero dimensions and checked shape multiplication.
+    // All downstream byte counts and allocations depend on this contract.
     std::size_t TensorDescriptor::element_count() const
     {
         if (shape.empty()) throw ContractError(ContractErrorCode::InvalidShape, "Tensor shape must have at least one dimension.");
@@ -71,6 +81,8 @@ namespace mllibrary::contracts
         return elements;
     }
 
+    // Convert validated element count to total storage bytes with overflow
+    // checking for the configured dtype's element size.
     std::size_t TensorDescriptor::byte_size() const
     {
         const std::size_t elements = element_count();
@@ -80,6 +92,8 @@ namespace mllibrary::contracts
         return elements * width;
     }
 
+    // Check row-major-style dense strides when explicit strides exist;
+    // a shape alone does not prove a strided view can be passed to SIMD.
     bool TensorDescriptor::contiguous() const
     {
         if (shape.empty()) return false;
@@ -95,6 +109,8 @@ namespace mllibrary::contracts
         return true;
     }
 
+    // Reject malformed strides, shape/layout mismatches and unsupported
+    // device-owned storage; this validates descriptors, not native buffers.
     void TensorDescriptor::validate() const
     {
         (void)byte_size();
@@ -111,6 +127,9 @@ namespace mllibrary::contracts
             throw ContractError(ContractErrorCode::UnsupportedLayout, "Image and filter Tensor layouts require rank four.");
     }
 
+    // Register complete named model metadata, reject duplicate IDs and keep
+    // entries sorted. A registration is a capability claim needing a runtime
+    // implementation and host evidence before dispatch.
     void ModelCapabilityRegistry::register_model(ModelCapability capability)
     {
         if (capability.modelID.empty() || capability.dataTypes.empty() || capability.devices.empty()
@@ -126,6 +145,8 @@ namespace mllibrary::contracts
             [](const ModelCapability& lhs, const ModelCapability& rhs) { return lhs.modelID < rhs.modelID; });
     }
 
+    // Return a borrowed registered capability or raise CapabilityNotFound.
+    // The reference lifetime is bounded by this registry's storage.
     const ModelCapability& ModelCapabilityRegistry::require(std::string_view modelID) const
     {
         const auto found = std::lower_bound(capabilities_.begin(), capabilities_.end(), modelID,
@@ -135,6 +156,8 @@ namespace mllibrary::contracts
         return *found;
     }
 
+    // Filter by declared task, train/infer support, dtype, device, rank and
+    // byte budget. Matching metadata does not itself execute the model.
     const ModelCapability& ModelCapabilityRegistry::select(
         ModelTask task,
         DataType dataType,
@@ -158,6 +181,8 @@ namespace mllibrary::contracts
         return *found;
     }
 
+    // Check version, sample-count and per-sample/label descriptor shapes;
+    // metadata validation is separate from reading actual dataset bytes.
     void DatasetFormat::validate() const
     {
         if (version != CurrentVersion || identifier.empty() || sampleCount == 0)
@@ -173,6 +198,8 @@ namespace mllibrary::contracts
         }
     }
 
+    // Verify checkpoint format metadata includes parameters and the known
+    // version; this does not imply the classic KMLCP01 file saves moments.
     void CheckpointFormat::validate() const
     {
         if (version != CurrentVersion || !includesParameters)
