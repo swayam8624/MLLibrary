@@ -1,3 +1,7 @@
+// TEACHING AUTOML ORCHESTRATION: profile typed Dataset, infer task and
+// fold strategy, produce bounded estimator families, allocate search budgets,
+// then run HyperparameterSearch. Not a universal model zoo or final-test gate.
+// See docs/DATA_TO_AUTOML_LAB.md for the complete call graph.
 #include "automl.hpp"
 
 #include <algorithm>
@@ -68,6 +72,8 @@ const ColumnProfile& target_profile(
     return profile.columns[*target];
 }
 
+// Explicit override or target-type/cardinality heuristics decide task kind.
+// Numerically encoded class labels are not automatically regression data.
 TaskKind infer_task(
     const Dataset& dataset,
     const DatasetProfile& profile,
@@ -104,6 +110,8 @@ TaskKind infer_task(
     return TaskKind::Regression;
 }
 
+// Use requested group or time validation when specified; prohibit both
+// simultaneously. Other tasks select their default CV split strategy.
 FoldStrategy select_fold_strategy(TaskKind task, const AutoMLConfig& config)
 {
     if (!config.group_column.empty() && !config.time_column.empty())
@@ -115,6 +123,8 @@ FoldStrategy select_fold_strategy(TaskKind task, const AutoMLConfig& config)
         : FoldStrategy::KFold;
 }
 
+// Predict encoded width from profiles, emitting high-cardinality warnings.
+// The actual vocabulary/scalers are fit from each training fold later.
 std::size_t estimate_feature_count(
     const Dataset& dataset,
     const DatasetProfile& profile,
@@ -153,6 +163,7 @@ std::size_t estimate_feature_count(
     return features;
 }
 
+// Binary-only logistic regression family, not a multiclass classifier.
 AutoMLCandidate make_logistic(
     PrimaryMetric metric,
     FoldStrategy strategy,
@@ -195,6 +206,7 @@ AutoMLCandidate make_naive_bayes(
     return candidate;
 }
 
+// Classification decision-tree family, tuned inside CrossValidator folds.
 AutoMLCandidate make_tree(
     PrimaryMetric metric,
     FoldStrategy strategy,
@@ -217,6 +229,7 @@ AutoMLCandidate make_tree(
     return candidate;
 }
 
+// Classification random-forest family with bounded ensemble parameters.
 AutoMLCandidate make_forest(
     PrimaryMetric metric,
     FoldStrategy strategy,
@@ -239,6 +252,8 @@ AutoMLCandidate make_forest(
     return candidate;
 }
 
+// Exact KNN candidate with bounded neighbor counts; large data/feature
+// widths may cause this family to be skipped during planning.
 AutoMLCandidate make_knn(
     PrimaryMetric metric,
     FoldStrategy strategy,
@@ -269,6 +284,8 @@ AutoMLCandidate make_knn(
     return candidate;
 }
 
+// The current regression family is linear regression, not forest/tree
+// regression; preserve this limitation in study and public reports.
 AutoMLCandidate make_linear_regression(
     PrimaryMetric metric,
     FoldStrategy strategy,
@@ -291,6 +308,8 @@ AutoMLCandidate make_linear_regression(
     return candidate;
 }
 
+// Validate fold/trial/time budgets and task-inference thresholds before any
+// expensive candidate search or estimation.
 void validate_config(const AutoMLConfig& config)
 {
     if (config.folds < 2)
@@ -309,6 +328,8 @@ void validate_config(const AutoMLConfig& config)
     }
 }
 
+// Rank successful candidate searches according to configured score direction.
+// Compare selected trials, not an assumed fixed metric across task kinds.
 bool better_candidate(
     const AutoMLCandidateResult& left,
     const AutoMLCandidateResult& right,
@@ -369,6 +390,8 @@ const AutoMLCandidateResult* AutoMLResult::best_candidate() const noexcept
     return &candidates[*best_candidate_index];
 }
 
+// Record planner decisions, family-level search outcomes and winner so the
+// user can audit selection history rather than trusting one summary metric.
 std::string AutoMLResult::to_json() const
 {
     std::ostringstream output;
@@ -409,6 +432,9 @@ AutoMLPlanner::AutoMLPlanner(AutoMLConfig config)
 {
 }
 
+// Profile, check target and split columns, infer task, choose supported
+// model families and issue warnings for skipped/unsupported candidates.
+// Planning is not itself model fitting or independent test evaluation.
 AutoMLPlan AutoMLPlanner::plan(const Dataset& dataset) const
 {
     AutoMLPlan plan;
@@ -518,6 +544,9 @@ AutoMLRunner::AutoMLRunner(AutoMLConfig config)
 {
 }
 
+// Divide trial/time budget across planned families, call HyperparameterSearch
+// for each, then select the best completed search. The winner is CV-selected;
+// no external untouched test score is computed by this method.
 AutoMLResult AutoMLRunner::run(const Dataset& dataset) const
 {
     AutoMLResult result;
