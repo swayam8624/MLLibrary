@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: Exercises the Estimator factory, PreparedDataset conversion, held-out evaluation and report generation.
+// These are source-visible assertions, not proof this test was executed on
+// the current commit. See docs/DATA_TO_AUTOML_LAB.md for corresponding theory.
+
 #include "experiment.hpp"
 
 #include <cmath>
@@ -31,6 +35,7 @@ PreparedDataset make_classification_dataset(
     return dataset;
 }
 
+// TEACHING TEST: Verifies binary logistic classification on separable toy inputs and output artifacts.
 bool test_logistic_experiment_and_artifacts()
 {
     const PreparedDataset training = make_classification_dataset(
@@ -84,6 +89,7 @@ bool test_logistic_experiment_and_artifacts()
     return passed && manifest_ok;
 }
 
+// TEACHING TEST: Verifies the regression task adapter and predicted continuous values.
 bool test_linear_regression_experiment()
 {
     PreparedDataset training;
@@ -115,6 +121,7 @@ bool test_linear_regression_experiment()
         && result.model_state_units == 2;
 }
 
+// TEACHING TEST: Exercises supported multiclass classification through a tree adapter.
 bool test_multiclass_tree_experiment()
 {
     const PreparedDataset dataset = make_classification_dataset(
@@ -142,6 +149,7 @@ bool test_multiclass_tree_experiment()
         && result.model_state_units >= 3;
 }
 
+// TEACHING TEST: Tests incompatible model/task configurations and previously unseen target failure paths.
 bool test_invalid_task_and_unseen_target_fail_cleanly()
 {
     PreparedDataset regression;
