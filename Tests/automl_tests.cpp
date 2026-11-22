@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: Tests planner eligibility, task/fold inference, family limitations and end-to-end CV-selected artifacts.
+// These are source-visible assertions, not proof this test was executed on
+// the current commit. See docs/DATA_TO_AUTOML_LAB.md for corresponding theory.
+
 #include "automl.hpp"
 
 #include <algorithm>
@@ -102,6 +106,7 @@ bool has_warning_fragment(const AutoMLPlan& plan, const std::string& fragment)
         });
 }
 
+// TEACHING TEST: Checks current binary candidate families from a typed target profile.
 bool test_binary_plan()
 {
     AutoMLConfig config;
@@ -116,6 +121,7 @@ bool test_binary_plan()
         && has_warning_fragment(plan, "Text column 'note'");
 }
 
+// TEACHING TEST: Prevents the binary-only logistic adapter from being offered as multiclass.
 bool test_multiclass_skips_binary_logistic()
 {
     AutoMLConfig config;
@@ -128,6 +134,7 @@ bool test_multiclass_skips_binary_logistic()
         && has_warning_fragment(plan, "binary-only");
 }
 
+// TEACHING TEST: Preserves disclosed linear-only regression planning.
 bool test_regression_plan_is_honest()
 {
     AutoMLConfig config;
@@ -140,6 +147,7 @@ bool test_regression_plan_is_honest()
         && has_warning_fragment(plan, "tree and forest regressors");
 }
 
+// TEACHING TEST: Shows integer-valued targets can be classified by configured heuristics.
 bool test_numeric_class_inference()
 {
     AutoMLConfig config;
@@ -151,6 +159,7 @@ bool test_numeric_class_inference()
     return plan.success && plan.task == TaskKind::Classification;
 }
 
+// TEACHING TEST: Exercises the AutoML -> Search -> CrossValidator composition and report outputs.
 bool test_end_to_end_selection_and_artifacts()
 {
     AutoMLConfig config;
@@ -178,6 +187,7 @@ bool test_end_to_end_selection_and_artifacts()
     return ok;
 }
 
+// TEACHING TEST: Rejects datasets without the required declared target column.
 bool test_missing_target_is_rejected()
 {
     DatasetSchema schema{{
