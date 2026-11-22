@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: Small synthetic training graphs validate deterministic batch order, descriptor rejection and non-finite update safety.
+// The source asserts these contracts; actual execution/host evidence must be
+// captured separately before marking the current build as verified.
+
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -20,6 +24,7 @@ struct TinyTrainingFixture final {
     Matrix* labels = nullptr;
 };
 
+// TEACHING TEST: Constructs an arena-owned tiny trainable classifier used by the controlled tests.
 TinyTrainingFixture create_fixture()
 {
     TinyTrainingFixture fixture;
@@ -68,6 +73,7 @@ TinyTrainingFixture create_fixture()
     return fixture;
 }
 
+// TEACHING TEST: Creates a consistent training request from the fixture-owned matrices.
 ModelTrainingDesc make_descriptor(const TinyTrainingFixture& fixture)
 {
     ModelTrainingDesc desc{};
@@ -101,6 +107,7 @@ bool run_deterministic_training(
     return passed;
 }
 
+// TEACHING TEST: Tests a final underfilled mini-batch and reproducible training for fixed initial state/seed.
 bool test_partial_batches_and_deterministic_seed()
 {
     std::array<float, 2> first_weights{};
@@ -117,6 +124,7 @@ bool test_partial_batches_and_deterministic_seed()
         && first_result.final_accuracy == second_result.final_accuracy;
 }
 
+// TEACHING TEST: Ensures preflight input/config failures do not mutate trainable weights.
 bool test_invalid_descriptor_is_rejected_before_mutation()
 {
     TinyTrainingFixture fixture = create_fixture();
@@ -139,6 +147,7 @@ bool test_invalid_descriptor_is_rejected_before_mutation()
     return passed;
 }
 
+// TEACHING TEST: Checks reject_non_finite prevents applying an invalid batch update.
 bool test_non_finite_batch_is_rejected_before_update()
 {
     TinyTrainingFixture fixture = create_fixture();
