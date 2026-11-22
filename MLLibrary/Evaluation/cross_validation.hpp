@@ -1,3 +1,6 @@
+// TEACHING PUBLIC API: reproducible KFold/stratified/group/time-series
+// row indices, then per-fold train-only preprocessing and model evaluation.
+// Source: Evaluation/cross_validation.cpp and Experiment/experiment.cpp.
 #pragma once
 
 #include "dataset.hpp"
@@ -19,6 +22,8 @@ using mllibrary::experiment::ExperimentResult;
 using mllibrary::experiment::TaskKind;
 using mllibrary::preprocessing::PipelineOptions;
 
+// These strategies protect against different leakage scenarios; no one
+// strategy is correct for every data-generating process.
 enum class FoldStrategy : std::uint8_t {
     KFold,
     Stratified,
@@ -69,6 +74,8 @@ struct MetricAggregate final {
     double maximum = 0.0;
 };
 
+// Dataset/task/estimator/pipeline/split/metric policy. The optional group
+// or time column can be excluded from model features after splitting.
 struct CrossValidationConfig final {
     TaskKind task = TaskKind::Classification;
     EstimatorConfig estimator{};
@@ -93,6 +100,8 @@ struct FoldEvaluation final {
     double primary_metric_value = 0.0;
 };
 
+// Contains EACH fold's metrics/evidence and an aggregate. success=false
+// carries an error instead of implying a valid mean over failed folds.
 struct CrossValidationResult final {
     bool success = false;
     std::string error;
@@ -105,6 +114,8 @@ struct CrossValidationResult final {
     void write_json(const std::string& path) const;
 };
 
+// run() builds fresh FittedPipeline and estimator state per fold: the
+// validation subset is transformed and scored, never used to fit preprocessors.
 class CrossValidator final {
 public:
     explicit CrossValidator(CrossValidationConfig config);
