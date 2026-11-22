@@ -2,7 +2,7 @@
 
 **Learn the running implementation:** [Source reading order](docs/SOURCE_READING_ORDER.md) · [MNIST training from first principles](docs/MNIST_TRAINING_FROM_FIRST_PRINCIPLES.md). These guides distinguish the classic C++ runtime from optional KairoMath/GPU module integration.
 
-**Depth and audit trail:** [Function-level teaching coverage](docs/SOURCE_TEACHING_PROGRESS.md) · [Checkpoint and reproducibility audit](docs/CHECKPOINT_AND_REPRODUCIBILITY_LAB.md). · [Full CSV-to-AutoML source laboratory](docs/DATA_TO_AUTOML_LAB.md).
+**Depth and audit trail:** [Function-level teaching coverage](docs/SOURCE_TEACHING_PROGRESS.md) · [Checkpoint and reproducibility audit](docs/CHECKPOINT_AND_REPRODUCIBILITY_LAB.md) · [Full CSV-to-AutoML source laboratory](docs/DATA_TO_AUTOML_LAB.md) · [CTest learning and evidence map](docs/TEST_EVIDENCE_AND_LEARNING_MAP.md).
 
 MLLibrary is a from-first-principles C++ machine-learning library. The current
 repo is the seed implementation: a small neural-network runtime that trains a
