@@ -1,3 +1,9 @@
+// TEACHING CPU BENCHMARK: allocate deterministic Float32 square matrices,
+// time the actual scalar mat_mul implementation and calculate a double-
+// precision reference error. Output is a versioned host-observed JSON report.
+// It does NOT benchmark KairoSIMD, KairoScheduler or Metal unless those paths
+// are separately instrumented. See OBSERVABILITY_AND_BENCHMARK_LAB.md.
+
 #include "benchmark.hpp"
 
 #include "arena.h"
@@ -35,6 +41,8 @@ namespace
         return error == std::errc{} && end == text.data() + text.size();
     }
 
+    // Parse bounded size/iteration count and seed: fail instead of silently
+    // changing workload size or output path when an argument is malformed.
     bool parse_options(int count, char** values, Options& options)
     {
         for (int index = 1; index < count; index += 2)
@@ -59,11 +67,16 @@ namespace
         return options.output && options.size > 0 && options.size <= 2048 && options.iterations > 0;
     }
 
+    // Invoke the production scalar matrix.cpp::mat_mul with overwrite=true.
+    // The benchmark measures this implementation, not a toy reference loop.
     bool multiply(Matrix* output, const Matrix* lhs, const Matrix* rhs)
     {
         return mat_mul(output, lhs, rhs, true, false, false);
     }
 
+    // Query process high-water RSS via getrusage. macOS reports bytes;
+    // the Linux path converts KiB to bytes. This is process memory, not just
+    // output allocations or an individual kernel's resident set.
     std::size_t peak_resident_bytes()
     {
         rusage usage{};
@@ -75,6 +88,8 @@ namespace
 #endif
     }
 
+    // Sort measured latencies and take a bounded nearest-rank percentile;
+    // unlike a single best run, report p50 and p95 variability evidence.
     double percentile(std::vector<double> values, double quantile)
     {
         std::sort(values.begin(), values.end());
@@ -84,6 +99,11 @@ namespace
     }
 }
 
+// Parse bounded options, allocate arena tensors, fill them with seeded
+// pseudo-random input, perform two warmup passes, time each overwrite GEMM,
+// compute a double-precision dot-product reference and record full manifest.
+// FLOP-based throughput assumes ~2*N^3 arithmetic operations per GEMM;
+// measured wall time includes loop overhead and host scheduling noise.
 int main(int argumentCount, char** arguments)
 {
     Options options;
