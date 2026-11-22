@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: The allocator smoke test exercises 64-byte over-alignment, zeroed allocations and invalid alignment rejection.
+// The source asserts these contracts; actual execution/host evidence must be
+// captured separately before marking the current build as verified.
+
 #include <cstdint>
 #include <cstdio>
 
@@ -17,6 +21,7 @@ namespace
     }
 }
 
+// TEACHING TEST: Allocates and examines typed arena storage and rejects non-power-of-two alignment. This does not exhaust OS reserve/commit/decommit failure paths.
 int main()
 {
     MemArena* arena = MemArena::create(MiB(2), KiB(64));
