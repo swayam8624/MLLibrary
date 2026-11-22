@@ -17,11 +17,18 @@
 
 namespace {
 
+// A runtime-input predicate, not an ownership check: a non-null Matrix with
+// nonempty data/shape is necessary but does not prove the pointer's lifetime.
 bool matrix_ready(const Matrix* matrix)
 {
     return matrix && matrix->data && matrix->rows > 0 && matrix->cols > 0;
 }
 
+// Validate all model/data/optimizer preconditions BEFORE touching weights.
+// Uses model.hpp's compiled cost program and training.hpp's descriptor;
+// returns an explanatory string on failure, empty string on success.
+// Check dimensions as logical element counts, optimizer ranges and finiteness,
+// and the existence of differentiable gradients and trainable parameters.
 std::string validate_training_request(
     const ModelContext* model,
     const ModelTrainingDesc* desc)
@@ -97,6 +104,9 @@ std::string validate_training_request(
     return {};
 }
 
+// Draw uniformly from [0,bound) using PRNG::rand and rejection sampling.
+// Removing low residues avoids modulo bias; callers pass a positive bound
+// from the Fisher-Yates shuffle below. The PRNG is training-local, not global.
 u32 bounded_random(PRNG& random, u32 bound)
 {
     const u32 threshold = static_cast<u32>(-bound) % bound;
@@ -109,6 +119,11 @@ u32 bounded_random(PRNG& random, u32 bound)
 
 } // namespace
 
+// Entry point used by main.cpp: validate request, obtain thread-local scratch
+// arena, generate seeded mini-batch permutations, accumulate per-sample
+// reverse-mode gradients, evaluate candidate optimizer updates, then report
+// epoch test metrics and optional CSV. Borrowed ModelContext/dataset pointers
+// must remain alive; ModelTrainingResult carries failure and step counts.
 ModelTrainingResult model_train(
     ModelContext* model,
     const ModelTrainingDesc* desc)
@@ -146,6 +161,10 @@ ModelTrainingResult model_train(
         return result;
     };
 
+    // Scratch temporaries include sample order and optimizer moments; these are
+    // scoped to THIS call and do not survive as resumable training state.
+    // arena.cpp::scratch_get chooses a thread-local scratch arena and its Temp
+    // restores allocation position on destruction.
     MemArena::Temp scratch = MemArena::scratch_get(nullptr, 0);
     if (!scratch.arena()) return fail("Failed to acquire training scratch memory.");
 
@@ -154,6 +173,9 @@ ModelTrainingResult model_train(
 
     Matrix** first_moment_by_var = nullptr;
     Matrix** second_moment_by_var = nullptr;
+    // Optimizers differ in state requirements: momentum/Nesterov/Adam/AdamW
+    // use first moments; RMSProp/Adam/AdamW also require second moments.
+    // Per-parameter arrays are indexed by ModelVar::index from model.cpp.
     const bool needs_first_moment = desc->optimizer == MODEL_OPTIMIZER_MOMENTUM_SGD
         || desc->optimizer == MODEL_OPTIMIZER_NESTEROV
         || desc->optimizer == MODEL_OPTIMIZER_ADAM
@@ -205,6 +227,8 @@ ModelTrainingResult model_train(
     for (u32 index = 0; index < num_examples; ++index) order[index] = index;
     PRNG random(desc->seed, desc->seed ^ 0xda3e39cb94b95bdbULL);
 
+    // An epoch begins with a Fisher-Yates shuffle using the descriptor's seed.
+    // The exact sequence depends on PRNG state, not merely shuffle count.
     for (u32 epoch = 0; epoch < desc->epochs; ++epoch)
     {
         for (u32 remaining = num_examples; remaining > 1; --remaining)
@@ -213,6 +237,9 @@ ModelTrainingResult model_train(
             std::swap(order[remaining - 1], order[selected]);
         }
 
+        // The final batch may contain fewer samples. Clear parameter gradients
+        // once per batch, then accumulate one backward pass per sample.
+        // model_prog_compute_grads intentionally leaves parameter grads alive.
         for (u32 batch = 0; batch < num_batches; ++batch)
         {
             const u32 batch_start = batch * desc->batch_size;
@@ -238,6 +265,9 @@ ModelTrainingResult model_train(
                     train_labels->data + static_cast<u64>(dataset_index) * output_size,
                     sizeof(f32) * output_size);
 
+                // Forward cost-graph evaluation calls matrix.cpp scalar kernels;
+                // reverse-mode adds this sample's contribution to each
+                // parameter gradient. Labels are inputs, not trainable nodes.
                 model_prog_compute(&model->cost_prog);
                 model_prog_compute_grads(&model->cost_prog);
 
@@ -247,6 +277,9 @@ ModelTrainingResult model_train(
                 batch_cost += sample_cost;
             }
 
+            // Convert summed per-sample gradients to a batch mean; if requested,
+            // scale every parameter gradient uniformly by its global L2 norm.
+            // This keeps clipping independent of any one parameter tensor.
             const f32 average_cost = static_cast<f32>(
                 batch_cost / static_cast<double>(current_batch_size));
             f32 gradient_scale = 1.0f / static_cast<f32>(current_batch_size);
@@ -281,6 +314,10 @@ ModelTrainingResult model_train(
             const f32 adam_bias2 = 1.0f
                 - std::pow(desc->beta2, static_cast<f32>(optimizer_step));
 
+            // Pure candidate calculation: given the *current* parameter and its
+            // moment buffers, return next values WITHOUT writing them. This
+            // enables validation of every candidate when reject_non_finite is
+            // enabled before committing any updated weights/moments.
             auto compute_update = [&](
                 ModelVar* variable,
                 Matrix* first,
@@ -337,6 +374,9 @@ ModelTrainingResult model_train(
                     && (!second || std::isfinite(next_second));
             };
 
+            // PRE-FLIGHT pass: check all candidate elements of all trainable
+            // variables before applying the batch. This protects weights and
+            // optimizer moment buffers from partial non-finite updates.
             if (desc->reject_non_finite)
             {
                 for (u32 index = 0; index < model->cost_prog.size; ++index)
@@ -358,6 +398,9 @@ ModelTrainingResult model_train(
                 }
             }
 
+            // COMMIT pass: recompute each validated candidate and write parameter
+            // values/moments. No allocated candidate buffer is retained.
+            // When reject_non_finite is disabled, this validation is skipped.
             for (u32 index = 0; index < model->cost_prog.size; ++index)
             {
                 ModelVar* variable = model->cost_prog.vars[index];
@@ -389,6 +432,10 @@ ModelTrainingResult model_train(
 
         std::printf("\n");
 
+        // End-of-epoch EVALUATION: copy held-out samples into the model inputs
+        // and run the cost graph without computing gradients or updates.
+        // Compare class indices with mat_argmax; CSV contains aggregate
+        // accuracy/loss, not raw sample images or labels.
         u32 correct = 0;
         double evaluation_cost = 0.0;
         for (u32 sample = 0; sample < num_tests; ++sample)
