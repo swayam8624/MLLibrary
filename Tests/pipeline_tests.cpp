@@ -1,3 +1,7 @@
+// TEACHING TEST MAP: Tests train-fitted imputation/scaling/one-hot state and validation transforms without leakage.
+// These are source-visible assertions, not proof this test was executed on
+// the current commit. See docs/DATA_TO_AUTOML_LAB.md for corresponding theory.
+
 #include "pipeline.hpp"
 
 #include <cmath>
@@ -35,6 +39,7 @@ bool nearly_equal(double a, double b, double tolerance = 1e-9)
     return std::fabs(a - b) <= tolerance;
 }
 
+// TEACHING TEST: Asserts exact fitted feature order, missing-value behavior and transformed row values.
 bool test_pipeline_values_and_validation_transform()
 {
     FittedPipeline pipeline;
@@ -64,6 +69,7 @@ bool test_pipeline_values_and_validation_transform()
     return true;
 }
 
+// TEACHING TEST: Makes held-out unfamiliar categories observable under the Error policy.
 bool test_unknown_category_error_policy()
 {
     PipelineOptions options;
@@ -84,6 +90,7 @@ bool test_unknown_category_error_policy()
     return false;
 }
 
+// TEACHING TEST: Checks fitted-state save/load preserves the transform contract for a known fixture.
 bool test_serialization_round_trip()
 {
     FittedPipeline pipeline;
@@ -102,6 +109,7 @@ bool test_serialization_round_trip()
         && loaded.training_fingerprint() == pipeline.training_fingerprint();
 }
 
+// TEACHING TEST: Ensures a trained pipeline rejects incompatible input schema at inference.
 bool test_schema_mismatch_is_rejected()
 {
     FittedPipeline pipeline;
@@ -122,6 +130,7 @@ bool test_schema_mismatch_is_rejected()
     return false;
 }
 
+// TEACHING TEST: Checks non-default median imputation and min/max scaling arithmetic.
 bool test_median_and_minmax()
 {
     DatasetSchema numeric_schema{{
