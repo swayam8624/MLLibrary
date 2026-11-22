@@ -1,3 +1,6 @@
+// TEACHING METRICS: CrossValidator evaluates each held-out fold and
+// ExperimentRunner writes per-split predictions. These helpers do not train
+// models or fit transformations. See docs/DATA_TO_AUTOML_LAB.md.
 #include "metrics.hpp"
 
 #include <algorithm>
@@ -11,6 +14,8 @@
 namespace mllibrary::evaluation {
 namespace {
 
+// Convert a finite integral double into an in-range integer class ID; reject
+// continuous-valued labels instead of rounding them into classes silently.
 int class_id(double value)
 {
     if (!std::isfinite(value))
@@ -26,6 +31,8 @@ int class_id(double value)
     return static_cast<int>(rounded);
 }
 
+// Metrics require nonempty, equally long predictions and ground truth;
+// indexes must refer to the same held-out sample order.
 void require_parallel_vectors(
     const std::vector<double>& actual,
     const std::vector<double>& predicted)
@@ -36,6 +43,9 @@ void require_parallel_vectors(
         throw std::invalid_argument("Actual and predicted vectors must have equal length.");
 }
 
+// Rank positive-class probabilities with average ranks for ties. Returns
+// nullopt when no positive or no negative observations exist, since the
+// binary ROC area is then undefined. Scores are required in [0,1].
 std::optional<double> binary_roc_auc(
     const std::vector<int>& actual,
     const std::vector<double>& scores,
@@ -92,6 +102,8 @@ std::optional<double> binary_roc_auc(
 
 } // namespace
 
+// Row=actual class, column=predicted class; check the label count before
+// indexing the flattened confusion-matrix storage.
 std::size_t ConfusionMatrix::at(
     std::size_t actual_index,
     std::size_t predicted_index) const
@@ -101,6 +113,10 @@ std::size_t ConfusionMatrix::at(
     return counts[actual_index * labels.size() + predicted_index];
 }
 
+// Build confusion matrix from integer class labels, then per-class precision,
+// recall, F1, macro and support-weighted aggregates. Optional scores must
+// describe the positive class of a binary task; log-loss and ROC-AUC are not
+// automatically available for multiclass predictions.
 ClassificationMetrics calculate_classification_metrics(
     const std::vector<double>& actual,
     const std::vector<double>& predicted,
@@ -223,6 +239,9 @@ ClassificationMetrics calculate_classification_metrics(
     return result;
 }
 
+// Accumulate MAE, MSE, RMSE, R^2 and optional MAPE from finite target/
+// prediction pairs. MAPE excludes denominators at/below zero_tolerance;
+// R^2 has a special constant-target branch. Report these conventions.
 RegressionMetrics calculate_regression_metrics(
     const std::vector<double>& actual,
     const std::vector<double>& predicted,
