@@ -1,3 +1,6 @@
+// TEACHING PUBLIC API: bounded discrete hyperparameter trials evaluated
+// through CrossValidator and ranked by metric direction. Search-selected
+// results are not a substitute for an independent final test set.
 #pragma once
 
 #include "cross_validation.hpp"
@@ -17,6 +20,8 @@ using mllibrary::evaluation::CrossValidationResult;
 using mllibrary::evaluation::PrimaryMetric;
 using mllibrary::experiment::EstimatorConfig;
 
+// Grid tries discrete Cartesian combinations, Random seeded-shuffles
+// candidates, and SuccessiveHalving promotes candidates with larger fold budgets.
 enum class SearchStrategy : std::uint8_t {
     Grid,
     Random,
@@ -55,6 +60,8 @@ struct SearchSpace final {
     [[nodiscard]] std::size_t cardinality() const;
 };
 
+// Maximum trials and optional wall-clock budget. The timer is checked
+// between evaluations; an in-flight fold is not preemptively interrupted.
 struct SearchBudget final {
     std::size_t maximum_trials = 25;
     double maximum_seconds = 0.0;
@@ -89,6 +96,8 @@ struct SearchTrial final {
     std::optional<CrossValidationResult> evaluation;
 };
 
+// Retains completed/failed/pruned trial history and a best-trial ID.
+// Failure states must remain visible when interpreting ranking artifacts.
 struct SearchResult final {
     bool success = false;
     std::string error;
@@ -104,6 +113,8 @@ struct SearchResult final {
     void write_json(const std::string& path) const;
 };
 
+// run() builds candidate-specific CV configurations. Each CV fold fits its
+// own preprocessing/model state using the *training* indices only.
 class HyperparameterSearch final {
 public:
     explicit HyperparameterSearch(SearchConfig config);
